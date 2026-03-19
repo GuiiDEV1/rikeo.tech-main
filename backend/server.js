@@ -22,29 +22,6 @@ process.on('unhandledRejection', (reason, promise) => {
 const app = express();
 
 // ── Middleware ────────────────────────────────────────────
-app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? ['https://rikeo.tech', 'https://www.rikeo.tech']
-    : ['http://localhost:8000', 'http://127.0.0.1:8000', 'http://localhost:8080', 'http://127.0.0.1:8080'],
-  credentials: true
-}));
-
-// Security headers
-app.use((req, res, next) => {
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('X-Frame-Options', 'DENY');
-  res.setHeader('X-XSS-Protection', '1; mode=block');
-  res.setHeader('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
-  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  // SECURITY: Stricter CSP without unsafe-inline for scripts (inline scripts blocked)
-  // Note: Frontend has inline scripts in HTML, so we allow them via unsafe-inline for now
-  // Production: Move all scripts to external files and remove unsafe-inline
-  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; media-src 'self' https:; base-uri 'self'; form-action 'self';");
-  next();
-});
-
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
