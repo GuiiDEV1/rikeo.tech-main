@@ -6,7 +6,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const mongoose = require('mongoose');
+const path = require('path');
 const authRoutes = require('./routes/auth');
 const notificationsRoutes = require('./routes/notifications');
 const moderationRoutes = require('./routes/moderation');
@@ -43,6 +43,13 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// ── Static File Serving ───────────────────────────────────
+const frontendPath = path.join(__dirname, '..');
+app.use(express.static(frontendPath, {
+  extensions: ['html', 'js', 'css'],
+  maxAge: '1h'
+}));
+
 // ── Database Connection ───────────────────────────────────
 // MongoDB - Commented out, using SQLite instead
 // mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/rikeo-tech')
@@ -68,6 +75,11 @@ app.get('/api/health', (req, res) => {
 // ── API 404 Handler ──────────────────────────────────────
 app.use('/api/*', (req, res) => {
   res.status(404).json({ error: 'API endpoint not found' });
+});
+
+// ── SPA Fallback ──────────────────────────────────────────
+app.get('*', (req, res) => {
+  res.sendFile(path.join(frontendPath, 'index.html'));
 });
 
 // ── Error Handling ────────────────────────────────────────
