@@ -7,6 +7,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
+const path = require('path');
 const authRoutes = require('./routes/auth');
 const notificationsRoutes = require('./routes/notifications');
 const moderationRoutes = require('./routes/moderation');
@@ -44,7 +45,6 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // ── Serve Frontend (Static Files) ──────────────────────────
-const path = require('path');
 app.use(express.static(path.join(__dirname, '../')));
 
 // ── Database Connection ───────────────────────────────────
@@ -70,8 +70,16 @@ app.get('/api/health', (req, res) => {
 
 // ── Fallback to Frontend (SPA Routing) ─────────────────────
 app.get('*', (req, res) => {
-  if (!req.url.startsWith('/api')) {
-    res.sendFile(path.join(__dirname, '../index.html'));
+  // Don't serve index.html for API routes
+  if (!req.url.startsWith('/api/')) {
+    res.sendFile(path.join(__dirname, '../index.html'), (err) => {
+      if (err) {
+        res.status(404).json({ error: 'Not found' });
+      }
+    });
+  } else {
+    // API route not found
+    res.status(404).json({ error: 'API endpoint not found' });
   }
 });
 
