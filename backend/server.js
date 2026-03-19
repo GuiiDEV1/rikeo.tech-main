@@ -1,15 +1,12 @@
-const express = require('express');
-const app = express();
-
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok' });
-});
-
-app.all('*', (req, res) => {
-  res.json({ message: 'Server running' });
-});
+const http = require('http');
 
 const PORT = process.env.PORT || 8080;
-app.listen(PORT, '0.0.0.0', () => {
+
+const server = http.createServer((req, res) => {
+  res.writeHead(200, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({ status: 'ok', port: PORT }));
+});
+
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`Server listening on port ${PORT}`);
 });
