@@ -44,12 +44,13 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // ── Database Connection ───────────────────────────────────
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/rikeo-tech')
-  .then(() => console.log('✓ MongoDB connected'))
-  .catch(err => {
-    console.error('✗ MongoDB connection error:', err);
-    // Continue without DB for now (localStorage fallback)
-  });
+// MongoDB - Commented out, using SQLite instead
+// mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/rikeo-tech')
+//   .then(() => console.log('✓ MongoDB connected'))
+//   .catch(err => {
+//     console.error('✗ MongoDB connection error:', err);
+//     // Continue without DB for now (localStorage fallback)
+//   });
 
 // ── Routes ────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
