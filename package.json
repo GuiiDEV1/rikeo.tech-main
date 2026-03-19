@@ -1,4 +1,11 @@
 {
+  "name": "rikeo-tech",
+  "version": "1.0.0",
+  "description": "RIKEO.TECH Forum",
+  "scripts": {
+    "start": "cd backend && npm start",
+    "dev": "cd backend && npm run dev"
+  },
   "dependencies": {
     "mongodb": "^7.1.0",
     "resend": "^6.9.4"
