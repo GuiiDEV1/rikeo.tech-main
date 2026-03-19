@@ -7,12 +7,12 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const authRoutes = require('./routes/auth');
-const notificationsRoutes = require('./routes/notifications');
-const moderationRoutes = require('./routes/moderation');
-const messagesRoutes = require('./routes/messages');
-const usersRoutes = require('./routes/users');
-const bookmarksRoutes = require('./routes/bookmarks');
+// const authRoutes = require('./routes/auth');
+// const notificationsRoutes = require('./routes/notifications');
+// const moderationRoutes = require('./routes/moderation');
+// const messagesRoutes = require('./routes/messages');
+// const usersRoutes = require('./routes/users');
+// const bookmarksRoutes = require('./routes/bookmarks');
 
 const app = express();
 
@@ -60,12 +60,13 @@ app.use(express.static(frontendPath, {
 //   });
 
 // ── Routes ────────────────────────────────────────────────
-app.use('/api/auth', authRoutes);
-app.use('/api/notifications', notificationsRoutes);
-app.use('/api/moderation', moderationRoutes);
-app.use('/api/messages', messagesRoutes);
-app.use('/api/users', usersRoutes);
-app.use('/api/bookmarks', bookmarksRoutes);
+// Temporarily disabled while fixing database setup
+// app.use('/api/auth', authRoutes);
+// app.use('/api/notifications', notificationsRoutes);
+// app.use('/api/moderation', moderationRoutes);
+// app.use('/api/messages', messagesRoutes);
+// app.use('/api/users', usersRoutes);
+// app.use('/api/bookmarks', bookmarksRoutes);
 
 // ── Health Check ──────────────────────────────────────────
 app.get('/api/health', (req, res) => {
