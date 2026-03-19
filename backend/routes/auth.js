@@ -8,8 +8,8 @@ const { Resend } = require('resend');
 
 const router = express.Router();
 
-// Initialize Resend with API key
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Initialize Resend with API key (optional - will be null if not provided)
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'noreply@rikeo.tech';
 
 // Temporary in-memory cache for users during dev mode (with expiration)
