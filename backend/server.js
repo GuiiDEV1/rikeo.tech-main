@@ -68,19 +68,14 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'RIKEO.TECH backend is running' });
 });
 
+// ── API 404 Handler ──────────────────────────────────────
+app.use('/api/*', (req, res) => {
+  res.status(404).json({ error: 'API endpoint not found' });
+});
+
 // ── Fallback to Frontend (SPA Routing) ─────────────────────
 app.get('*', (req, res) => {
-  // Don't serve index.html for API routes
-  if (!req.url.startsWith('/api/')) {
-    res.sendFile(path.join(__dirname, '../index.html'), (err) => {
-      if (err) {
-        res.status(404).json({ error: 'Not found' });
-      }
-    });
-  } else {
-    // API route not found
-    res.status(404).json({ error: 'API endpoint not found' });
-  }
+  res.sendFile(path.join(__dirname, '../index.html'));
 });
 
 // ── Error Handling ────────────────────────────────────────
