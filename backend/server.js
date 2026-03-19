@@ -6,13 +6,18 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-// const path = require('path');
-// const authRoutes = require('./routes/auth');
-// const notificationsRoutes = require('./routes/notifications');
-// const moderationRoutes = require('./routes/moderation');
-// const messagesRoutes = require('./routes/messages');
-// const usersRoutes = require('./routes/users');
-// const bookmarksRoutes = require('./routes/bookmarks');
+
+console.log('Starting server...');
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
 
 const app = express();
 
@@ -53,10 +58,17 @@ app.all('*', (req, res) => {
   res.status(200).json({ status: 'ok', message: 'Server is running' });
 });
 
+// ── Error Handling ────────────────────────────────────────
+app.use((err, req, res, next) => {
+  console.error('Error caught:', err);
+  res.status(500).json({ error: 'Internal server error' });
+});
+
 // ── Start Server ──────────────────────────────────────────
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`
+try {
+  app.listen(PORT, () => {
+    console.log(`
 ╔════════════════════════════════════════╗
 ║   RIKEO.TECH Backend Server Running    ║
 ╠════════════════════════════════════════╣
@@ -64,5 +76,9 @@ app.listen(PORT, () => {
 ║   Environment: ${process.env.NODE_ENV || 'development'}        ║
 ║   Frontend: ${process.env.FRONTEND_URL || 'http://localhost:8000'} ║
 ╚════════════════════════════════════════╝
-  `);
-});
+    `);
+  });
+} catch (err) {
+  console.error('Failed to start server:', err);
+  process.exit(1);
+}
