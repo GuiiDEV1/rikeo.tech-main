@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Forum — RIKEO</title>
+  <meta name="description" content="Browse forum threads by category.">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div id="header-mount"></div>
+
+<div class="container" style="padding:0">
+  <div class="layout">
+    <main class="main-col">
+
+      <!-- Category header -->
+      <div class="thread-header" id="cat-header">
+        <div class="breadcrumb">
+          <a href="index.html">Forum</a>
+          <span class="breadcrumb-sep">/</span>
+          <span id="breadcrumb-cat"></span>
+        </div>
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap">
+          <div>
+            <div style="font-size:2.4rem;margin-bottom:12px" id="cat-icon-display"></div>
+            <h1 class="thread-title" id="cat-name-display"></h1>
+            <p id="cat-desc-display" style="font-size:0.9rem;color:var(--text-secondary);margin-top:8px;max-width:480px"></p>
+          </div>
+          <button class="btn btn-primary" onclick="requireAuth(u => window.location.href='create.html?cat='+catId)">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M8 2v12M2 8h12"/></svg>
+            New Thread
+          </button>
+        </div>
+        <div class="thread-info" style="margin-top:20px" id="cat-stats"></div>
+      </div>
+
+      <!-- Sort bar -->
+      <div class="filter-bar">
+        <button class="filter-btn active" data-sort="recent" onclick="setSort(this,'recent')">Recent</button>
+        <button class="filter-btn" data-sort="popular" onclick="setSort(this,'popular')">Most Viewed</button>
+        <button class="filter-btn" data-sort="replies" onclick="setSort(this,'replies')">Most Replies</button>
+      </div>
+
+      <!-- Post list -->
+      <div class="post-list" id="post-list"></div>
+      <div class="pagination" id="pagination"></div>
+
+    </main>
+
+    <div id="sidebar-mount"></div>
+  </div>
+</div>
+
+<div id="footer-mount"></div>
+<div id="toast-container"></div>
+
+<script src="js/authService.js"></script>
+<script src="js/emailVerification.js"></script>
+<script src="js/data.js"></script>
+<script src="js/app.js"></script>
+<script>
+  const PAGE_SIZE = 10;
+  let catId       = new URLSearchParams(location.search).get('cat') || 'cat_general';
+  let currentSort = 'recent';
+  let currentPage = 1;
+
+  document.addEventListener('DOMContentLoaded', () => {
+    applyTheme();
+    document.getElementById('header-mount').innerHTML = renderHeader('home');
+    document.getElementById('sidebar-mount').innerHTML = renderSidebar();
+    document.getElementById('footer-mount').innerHTML = renderFooter();
+    renderCategoryHeader();
+    renderPosts();
+  });
+
+  function renderCategoryHeader() {
+    const cat   = DB.getCategory(catId);
+    if (!cat) { window.location.href = 'index.html'; return; }
+
+    document.title = `${cat.name} — RIKEO Forum`;
+    document.getElementById('breadcrumb-cat').textContent = cat.name;
+    document.getElementById('cat-icon-display').textContent = cat.icon;
+    document.getElementById('cat-icon-display').style.color = cat.color;
+    document.getElementById('cat-name-display').textContent = cat.name;
+    document.getElementById('cat-desc-display').textContent = cat.description;
+
+    const catStats = DB.getCategoryStats().find(c => c.id === catId);
+    if (catStats) {
+      document.getElementById('cat-stats').innerHTML = [
+        { val: catStats.postCount,    label: 'threads' },
+        { val: catStats.commentCount, label: 'replies' },
+      ].map(s => `<span class="thread-stat"><strong style="color:var(--text)">${s.val}</strong> ${s.label}</span>`).join('');
+    }
+  }
+
+  function setSort(btn, sort) {
+    document.querySelectorAll('[data-sort]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentSort = sort;
+    currentPage = 1;
+    renderPosts();
+  }
+
+  function renderPosts() {
+    let posts = DB.getPosts({ categoryId: catId });
+
+    if (currentSort === 'popular') posts.sort((a,b) => b.views - a.views);
+    else if (currentSort === 'replies') {
+      posts.sort((a,b) => DB.getComments(b.id).length - DB.getComments(a.id).length);
+    }
+    // 'recent' already sorted with pinned first by DB.getPosts
+
+    const total = posts.length;
+    const start = (currentPage - 1) * PAGE_SIZE;
+    const page  = posts.slice(start, start + PAGE_SIZE);
+    const list  = document.getElementById('post-list');
+
+    if (!page.length) {
+      list.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">◈</div>
+          <div class="empty-title">No threads yet</div>
+          <div class="empty-text">Start the first conversation in this category.</div>
+          <button class="btn btn-primary" onclick="requireAuth(u => window.location.href='create.html?cat=${catId}')">Create Thread</button>
+        </div>`;
+      document.getElementById('pagination').innerHTML = '';
+      return;
+    }
+
+    list.innerHTML = page.map(post => renderPostItem(post)).join('');
+    renderPagination(total, currentPage);
+  }
+
+  function renderPostItem(post) {
+    const author   = DB.getUser(post.authorId);
+    const cat      = DB.getCategory(post.categoryId);
+    const comments = DB.getComments(post.id);
+    const authorName = author ? escapeHtml(author.displayName) : 'Unknown';
+
+    return `
+      <a href="post.html?id=${post.id}" class="post-item">
+        <div class="post-main">
+          <div class="post-meta">
+            ${post.pinned ? `<span class="badge badge-accent">Pinned</span>` : ''}
+            ${post.videoUrl ? `<span class="badge" style="border-color:#666">▶ Video</span>` : ''}
+            ${(post.tags || []).slice(0,3).map(t => `<span class="badge">${escapeHtml(t)}</span>`).join('')}
+          </div>
+          <div class="post-title">${escapeHtml(post.title)}</div>
+          <div class="post-excerpt">${stripHtml(post.content)}</div>
+          <div class="post-footer">
+            <span class="post-author">by <strong>${authorName}</strong></span>
+            <span class="post-date">${timeAgo(post.createdAt)}</span>
+          </div>
+        </div>
+        <div class="post-side">
+          <div class="post-replies"><strong>${comments.length}</strong> replies</div>
+          <div class="post-views">${formatNumber(post.views)} views</div>
+        </div>
+      </a>
+    `;
+  }
+
+  function renderPagination(total, page) {
+    const pages = Math.ceil(total / PAGE_SIZE);
+    if (pages <= 1) { document.getElementById('pagination').innerHTML = ''; return; }
+    let html = `<button class="page-btn" onclick="goPage(${page-1})" ${page===1?'disabled':''}>‹</button>`;
+    for (let i = 1; i <= pages; i++) {
+      html += `<button class="page-btn ${i===page?'active':''}" onclick="goPage(${i})">${i}</button>`;
+    }
+    html += `<button class="page-btn" onclick="goPage(${page+1})" ${page===pages?'disabled':''}>›</button>`;
+    document.getElementById('pagination').innerHTML = html;
+  }
+
+  function goPage(p) {
+    currentPage = p;
+    renderPosts();
+    document.querySelector('#post-list').scrollIntoView({ behavior: 'smooth' });
+  }
+</script>
+</body>
+</html>

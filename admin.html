@@ -1,0 +1,1357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Panel — RIKEO.TECH</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .admin-container {
+      display: flex;
+      min-height: 100vh;
+      gap: 0;
+    }
+
+    .admin-sidebar {
+      width: 250px;
+      background: var(--surface-1);
+      border-right: 1px solid var(--border);
+      padding: 24px 0;
+      position: fixed;
+      height: 100vh;
+      overflow-y: auto;
+    }
+
+    .admin-main {
+      margin-left: 250px;
+      flex: 1;
+      padding: 24px;
+    }
+
+    .admin-nav-section {
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .admin-nav-section:last-child {
+      border-bottom: none;
+    }
+
+    .admin-nav-label {
+      padding: 8px 16px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      letter-spacing: 0.5px;
+    }
+
+    .admin-nav-item {
+      padding: 10px 16px;
+      cursor: pointer;
+      color: var(--text-secondary);
+      transition: all 0.2s;
+      border-left: 3px solid transparent;
+      font-size: 0.9rem;
+    }
+
+    .admin-nav-item:hover {
+      background: var(--surface-2);
+      color: var(--text);
+      border-left-color: var(--accent);
+    }
+
+    .admin-nav-item.active {
+      background: var(--surface-2);
+      color: var(--accent);
+      border-left-color: var(--accent);
+      font-weight: 600;
+    }
+
+    .admin-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .admin-header h1 {
+      margin: 0;
+      font-size: 1.8rem;
+    }
+
+    .admin-header-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .admin-section {
+      display: none;
+    }
+
+    .admin-section.active {
+      display: block;
+    }
+
+    .admin-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .admin-stat-card {
+      background: var(--surface-2);
+      padding: 20px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+
+    .admin-stat-label {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+
+    .admin-stat-value {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .admin-stat-change {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .admin-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .admin-table thead {
+      background: var(--surface-1);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .admin-table th {
+      padding: 12px 16px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-secondary);
+    }
+
+    .admin-table td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.9rem;
+    }
+
+    .admin-table tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    .admin-table tbody tr:hover {
+      background: var(--surface-1);
+    }
+
+    .admin-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .admin-btn {
+      padding: 6px 12px;
+      font-size: 0.8rem;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .admin-btn-danger {
+      background: #dc2626;
+      color: white;
+    }
+
+    .admin-btn-danger:hover {
+      background: #b91c1c;
+    }
+
+    .admin-btn-warning {
+      background: #f59e0b;
+      color: white;
+    }
+
+    .admin-btn-warning:hover {
+      background: #d97706;
+    }
+
+    .admin-btn-success {
+      background: #10b981;
+      color: white;
+    }
+
+    .admin-btn-success:hover {
+      background: #059669;
+    }
+
+    .admin-btn-info {
+      background: var(--accent);
+      color: white;
+    }
+
+    .admin-btn-info:hover {
+      opacity: 0.9;
+    }
+
+    .admin-filters {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .admin-filters input,
+    .admin-filters select {
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+      color: var(--text);
+      border-radius: 4px;
+      font-size: 0.9rem;
+    }
+
+    .admin-filters input::placeholder {
+      color: var(--text-muted);
+    }
+
+    .admin-badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .admin-badge-admin {
+      background: var(--accent);
+      color: white;
+    }
+
+    .admin-badge-user {
+      background: #6366f1;
+      color: white;
+    }
+
+    .admin-badge-banned {
+      background: #dc2626;
+      color: white;
+    }
+
+    .admin-badge-active {
+      background: #10b981;
+      color: white;
+    }
+
+    .admin-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .admin-modal.active {
+      display: flex;
+    }
+
+    .admin-modal-content {
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 24px;
+      max-width: 500px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+
+    .admin-modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .admin-modal-header h2 {
+      margin: 0;
+    }
+
+    .admin-modal-close {
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: var(--text-secondary);
+    }
+
+    .admin-modal-close:hover {
+      color: var(--text);
+    }
+
+    .admin-form-group {
+      margin-bottom: 16px;
+    }
+
+    .admin-form-group label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+
+    .admin-form-group input,
+    .admin-form-group textarea,
+    .admin-form-group select {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+      color: var(--text);
+      border-radius: 4px;
+      font-size: 0.9rem;
+      font-family: inherit;
+    }
+
+    .admin-form-group textarea {
+      resize: vertical;
+      min-height: 100px;
+    }
+
+    .admin-form-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+
+    .admin-empty {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-secondary);
+    }
+
+    .admin-empty-icon {
+      font-size: 3rem;
+      margin-bottom: 12px;
+      opacity: 0.5;
+    }
+
+    .admin-loading {
+      text-align: center;
+      padding: 20px;
+      color: var(--text-secondary);
+    }
+
+    .admin-spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @media (max-width: 768px) {
+      .admin-sidebar {
+        width: 200px;
+      }
+
+      .admin-main {
+        margin-left: 200px;
+      }
+
+      .admin-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 600px) {
+      .admin-container {
+        flex-direction: column;
+      }
+
+      .admin-sidebar {
+        width: 100%;
+        height: auto;
+        position: relative;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+        padding: 12px 0;
+      }
+
+      .admin-main {
+        margin-left: 0;
+        padding: 16px;
+      }
+
+      .admin-table {
+        overflow-x: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="header-mount"></div>
+  <div class="admin-container">
+    <!-- Sidebar -->
+    <div class="admin-sidebar">
+      <div style="padding: 16px; border-bottom: 1px solid var(--border); margin-bottom: 16px;">
+        <h3 style="margin: 0; color: var(--accent); font-size: 0.9rem;">⚙️ Admin Panel</h3>
+      </div>
+      <div class="admin-nav-section">
+        <div class="admin-nav-label">Dashboard</div>
+        <div class="admin-nav-item active" onclick="switchTab('dashboard')">📊 Overview</div>
+      </div>
+      <div class="admin-nav-section">
+        <div class="admin-nav-label">Management</div>
+        <div class="admin-nav-item" onclick="switchTab('users')">👥 Users</div>
+        <div class="admin-nav-item" onclick="switchTab('posts')">📝 Posts</div>
+        <div class="admin-nav-item" onclick="switchTab('comments')">💬 Comments</div>
+        <div class="admin-nav-item" onclick="switchTab('reports')">🚩 Reports</div>
+      </div>
+      <div class="admin-nav-section">
+        <div class="admin-nav-label">Settings</div>
+        <div class="admin-nav-item" onclick="switchTab('categories')">📂 Categories</div>
+        <div class="admin-nav-item" onclick="switchTab('moderation')">🛡️ Moderation</div>
+      </div>
+      <div class="admin-nav-section">
+        <div class="admin-nav-label">Other</div>
+        <div class="admin-nav-item" onclick="switchTab('logs')">📋 Activity Logs</div>
+        <div class="admin-nav-item" onclick="logout()" style="color: var(--red);">🚪 Logout</div>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="admin-main">
+      <!-- Dashboard Section -->
+      <div id="dashboard" class="admin-section active">
+        <div class="admin-header">
+          <h1>Dashboard</h1>
+          <button class="btn btn-ghost" onclick="refreshDashboard()">🔄 Refresh</button>
+        </div>
+
+        <div class="admin-grid">
+          <div class="admin-stat-card">
+            <div class="admin-stat-label">Total Users</div>
+            <div class="admin-stat-value" id="total-users">0</div>
+            <div class="admin-stat-change">All registered users</div>
+          </div>
+          <div class="admin-stat-card">
+            <div class="admin-stat-label">Total Posts</div>
+            <div class="admin-stat-value" id="total-posts">0</div>
+            <div class="admin-stat-change">All threads</div>
+          </div>
+          <div class="admin-stat-card">
+            <div class="admin-stat-label">Total Comments</div>
+            <div class="admin-stat-value" id="total-comments">0</div>
+            <div class="admin-stat-change">All replies</div>
+          </div>
+          <div class="admin-stat-card">
+            <div class="admin-stat-label">Pending Reports</div>
+            <div class="admin-stat-value" id="pending-reports">0</div>
+            <div class="admin-stat-change">Needs action</div>
+          </div>
+        </div>
+
+        <h2>Recent Activity</h2>
+        <div id="activity-feed" style="margin-top: 16px;">
+          <div class="admin-loading"><div class="admin-spinner"></div> Loading...</div>
+        </div>
+      </div>
+
+      <!-- Users Section -->
+      <div id="users" class="admin-section">
+        <div class="admin-header">
+          <h1>User Management</h1>
+          <button class="btn btn-primary" onclick="openNewUserModal()">+ New User</button>
+        </div>
+
+        <div class="admin-filters">
+          <input type="text" id="user-search" placeholder="Search by username or email..." onkeyup="filterUsers()">
+          <select id="user-role" onchange="filterUsers()">
+            <option value="">All Roles</option>
+            <option value="admin">Admin</option>
+            <option value="user">User</option>
+          </select>
+          <select id="user-status" onchange="filterUsers()">
+            <option value="">All Status</option>
+            <option value="active">Active</option>
+            <option value="banned">Banned</option>
+          </select>
+        </div>
+
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Username</th>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Posts</th>
+              <th>Joined</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="users-list">
+            <tr><td colspan="6" class="admin-empty"><div class="admin-spinner"></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Posts Section -->
+      <div id="posts" class="admin-section">
+        <div class="admin-header">
+          <h1>Post Management</h1>
+        </div>
+
+        <div class="admin-filters">
+          <input type="text" id="post-search" placeholder="Search posts..." onkeyup="filterPosts()">
+          <select id="post-category" onchange="filterPosts()">
+            <option value="">All Categories</option>
+          </select>
+        </div>
+
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Author</th>
+              <th>Category</th>
+              <th>Views</th>
+              <th>Replies</th>
+              <th>Created</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="posts-list">
+            <tr><td colspan="7" class="admin-empty"><div class="admin-spinner"></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Comments Section -->
+      <div id="comments" class="admin-section">
+        <div class="admin-header">
+          <h1>Comment Management</h1>
+        </div>
+
+        <div class="admin-filters">
+          <input type="text" id="comment-search" placeholder="Search comments..." onkeyup="filterComments()">
+        </div>
+
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Author</th>
+              <th>Content</th>
+              <th>Post</th>
+              <th>Created</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="comments-list">
+            <tr><td colspan="5" class="admin-empty"><div class="admin-spinner"></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Reports Section -->
+      <div id="reports" class="admin-section">
+        <div class="admin-header">
+          <h1>Report Management</h1>
+        </div>
+
+        <div class="admin-filters">
+          <select id="report-status" onchange="filterReports()">
+            <option value="">All Status</option>
+            <option value="pending">Pending</option>
+            <option value="resolved">Resolved</option>
+            <option value="dismissed">Dismissed</option>
+          </select>
+        </div>
+
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Reporter</th>
+              <th>Reason</th>
+              <th>Target</th>
+              <th>Status</th>
+              <th>Created</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="reports-list">
+            <tr><td colspan="6" class="admin-empty"><div class="admin-spinner"></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Categories Section -->
+      <div id="categories" class="admin-section">
+        <div class="admin-header">
+          <h1>Categories</h1>
+          <button class="btn btn-primary" onclick="openNewCategoryModal()">+ New Category</button>
+        </div>
+
+        <div id="categories-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px;">
+          <div class="admin-loading"><div class="admin-spinner"></div></div>
+        </div>
+      </div>
+
+      <!-- Moderation Section -->
+      <div id="moderation" class="admin-section">
+        <div class="admin-header">
+          <h1>Moderation Settings</h1>
+        </div>
+
+        <div style="max-width: 600px;">
+          <div class="admin-stat-card" style="margin-bottom: 16px;">
+            <h3 style="margin-top: 0;">Moderation Tools</h3>
+            <div style="display: grid; gap: 12px;">
+              <button class="btn btn-warning" style="width: 100%;" onclick="openBulkActionModal()">
+                🎯 Bulk Moderate Posts
+              </button>
+              <button class="btn btn-danger" style="width: 100%;" onclick="openBanListModal()">
+                🚫 View Ban List
+              </button>
+              <button class="btn btn-info" style="width: 100%;" onclick="openFilterSettingsModal()">
+                📋 Content Filters
+              </button>
+            </div>
+          </div>
+
+          <div class="admin-stat-card">
+            <h3 style="margin-top: 0;">Forum Settings</h3>
+            <div class="admin-form-group">
+              <label>Forum Title</label>
+              <input type="text" id="forum-title" value="RIKEO.TECH">
+            </div>
+            <div class="admin-form-group">
+              <label>Forum Description</label>
+              <textarea id="forum-desc">A community space for discussing ideas from the videos and beyond.</textarea>
+            </div>
+            <div class="admin-form-group">
+              <label>Allow Registration</label>
+              <input type="checkbox" checked id="allow-registration" style="width: auto;">
+            </div>
+            <button class="btn btn-primary" onclick="saveSettings()" style="width: 100%; margin-top: 12px;">Save Settings</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Logs Section -->
+      <div id="logs" class="admin-section">
+        <div class="admin-header">
+          <h1>Activity Logs</h1>
+          <button class="btn btn-ghost" onclick="clearLogs()">Clear Logs</button>
+        </div>
+
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Admin</th>
+              <th>Action</th>
+              <th>Details</th>
+              <th>Timestamp</th>
+            </tr>
+          </thead>
+          <tbody id="logs-list">
+            <tr><td colspan="4" class="admin-empty">No activity logs yet</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modals -->
+  <div id="admin-modal" class="admin-modal">
+    <div class="admin-modal-content">
+      <div class="admin-modal-header">
+        <h2 id="modal-title">Modal Title</h2>
+        <button class="admin-modal-close" onclick="closeModal()">×</button>
+      </div>
+      <div id="modal-content"></div>
+    </div>
+  </div>
+
+  <script src="js/data.js"></script>
+  <script src="js/authService.js"></script>
+  <script src="js/app.js"></script>
+
+  <script>
+    // Check admin access
+    document.addEventListener('DOMContentLoaded', () => {
+      const user = getCurrentUser();
+      if (!user || user.role !== 'admin') {
+        alert('Unauthorized access. Admin only.');
+        window.location.href = 'index.html';
+        return;
+      }
+
+      document.getElementById('header-mount').innerHTML = renderHeader('admin');
+      loadDashboard();
+    });
+
+    function switchTab(tab) {
+      // Hide all sections
+      document.querySelectorAll('.admin-section').forEach(el => el.classList.remove('active'));
+      // Hide all nav items
+      document.querySelectorAll('.admin-nav-item').forEach(el => el.classList.remove('active'));
+
+      // Show selected section
+      const section = document.getElementById(tab);
+      if (section) {
+        section.classList.add('active');
+      }
+
+      // Mark nav item as active
+      event.target.classList.add('active');
+
+      // Load section data
+      switch(tab) {
+        case 'users': loadUsers(); break;
+        case 'posts': loadPosts(); break;
+        case 'comments': loadComments(); break;
+        case 'reports': loadReports(); break;
+        case 'categories': loadCategories(); break;
+        case 'logs': loadLogs(); break;
+      }
+    }
+
+    function loadDashboard() {
+      const users = DB.getUsers() || [];
+      const posts = DB.getPosts() || [];
+      const comments = DB.getComments ? DB.getComments() : (DB._get(DB.KEYS.COMMENTS) || []);
+      
+      document.getElementById('total-users').textContent = users.length;
+      document.getElementById('total-posts').textContent = posts.length;
+      document.getElementById('total-comments').textContent = comments.length;
+      document.getElementById('pending-reports').textContent = '0';
+
+      // Sample activity
+      const activity = [
+        { action: 'User registered', user: users[0]?.displayName || 'Unknown', time: 'Just now' },
+        { action: 'Post created', user: users[0]?.displayName || 'Unknown', time: '2 hours ago' },
+        { action: 'Report submitted', user: 'System', time: '5 hours ago' }
+      ];
+
+      document.getElementById('activity-feed').innerHTML = activity.map(a => `
+        <div style="padding: 12px; background: var(--surface-2); border-radius: 4px; margin-bottom: 8px;">
+          <div style="display: flex; justify-content: space-between;">
+            <strong>${a.action}</strong>
+            <span style="font-size: 0.8rem; color: var(--text-muted);">${a.time}</span>
+          </div>
+          <div style="font-size: 0.9rem; color: var(--text-secondary);">by ${a.user}</div>
+        </div>
+      `).join('');
+    }
+
+    function refreshDashboard() {
+      loadDashboard();
+      showToast('Dashboard refreshed', 'success');
+    }
+
+    function loadUsers() {
+      const users = DB.getUsers() || [];
+      const list = document.getElementById('users-list');
+
+      if (users.length === 0) {
+        list.innerHTML = '<tr><td colspan="6" class="admin-empty"><div class="admin-empty-icon">👤</div> No users found</td></tr>';
+        return;
+      }
+
+      list.innerHTML = users.map(u => `
+        <tr>
+          <td><strong>${escapeHtml(u.username)}</strong></td>
+          <td>${escapeHtml(u.email)}</td>
+          <td><span class="admin-badge admin-badge-${u.role || 'user'}">${u.role || 'user'}</span></td>
+          <td>${u.postCount || 0}</td>
+          <td>${formatDate(u.joined)}</td>
+          <td>
+            <div class="admin-actions">
+              <button class="admin-btn admin-btn-info" onclick="editUser('${u.id}')">Edit</button>
+              <button class="admin-btn admin-btn-danger" onclick="deleteUser('${u.id}')">Delete</button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function loadPosts() {
+      const posts = DB.getPosts() || [];
+      const list = document.getElementById('posts-list');
+
+      if (posts.length === 0) {
+        list.innerHTML = '<tr><td colspan="7" class="admin-empty"><div class="admin-empty-icon">📝</div> No posts found</td></tr>';
+        return;
+      }
+
+      list.innerHTML = posts.slice(0, 20).map(p => {
+        const author = DB.getUser(p.authorId);
+        const cat = DB.getCategory(p.categoryId);
+        const comments = DB.getComments(p.id) || [];
+        return `
+          <tr>
+            <td><strong>${escapeHtml(p.title.slice(0, 30))}</strong></td>
+            <td>${author ? escapeHtml(author.displayName) : 'Unknown'}</td>
+            <td>${cat ? cat.name : 'Unknown'}</td>
+            <td>${p.views || 0}</td>
+            <td>${comments.length}</td>
+            <td>${formatDate(p.createdAt)}</td>
+            <td>
+              <div class="admin-actions">
+                <button class="admin-btn admin-btn-info" onclick="viewPost('${p.id}')">View</button>
+                <button class="admin-btn admin-btn-warning" onclick="pinPost('${p.id}')">Pin</button>
+                <button class="admin-btn admin-btn-danger" onclick="deletePost('${p.id}')">Delete</button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function loadComments() {
+      const comments = DB._get(DB.KEYS.COMMENTS) || [];
+      const list = document.getElementById('comments-list');
+
+      if (comments.length === 0) {
+        list.innerHTML = '<tr><td colspan="5" class="admin-empty"><div class="admin-empty-icon">💬</div> No comments found</td></tr>';
+        return;
+      }
+
+      list.innerHTML = comments.slice(0, 20).map(c => {
+        // Try direct lookup first
+        let author = DB.getUser(c.authorId);
+        
+        // If not found, try to find user by matching comment in their posts/comments
+        if (!author && c.authorId) {
+          const users = DB.getUsers() || [];
+          author = users.find(u => u.id === c.authorId);
+        }
+        
+        const post = DB.getPost(c.postId);
+        return `
+          <tr>
+            <td>${author ? escapeHtml(author.displayName) : ('Unknown' + (c.authorId ? ` (${c.authorId.slice(0, 8)})` : ''))}</td>
+            <td>${escapeHtml(c.content.slice(0, 40))}...</td>
+            <td>${post ? escapeHtml(post.title.slice(0, 20)) : 'Unknown'}</td>
+            <td>${formatDate(c.createdAt)}</td>
+            <td>
+              <div class="admin-actions">
+                <button class="admin-btn admin-btn-danger" onclick="deleteComment('${c.id}')">Delete</button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function loadReports() {
+      const list = document.getElementById('reports-list');
+      list.innerHTML = '<tr><td colspan="6" class="admin-empty"><div class="admin-empty-icon">🚩</div> No reports found</td></tr>';
+    }
+
+    function loadCategories() {
+      const categories = DB.getCategories && DB.getCategories() || [];
+      const container = document.getElementById('categories-list');
+
+      if (categories.length === 0) {
+        container.innerHTML = '<div class="admin-empty"><div class="admin-empty-icon">📂</div> No categories found</div>';
+        return;
+      }
+
+      container.innerHTML = categories.map(cat => `
+        <div class="admin-stat-card">
+          <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;">
+            <h3 style="margin: 0; color: ${cat.color};">${cat.name}</h3>
+            <div class="admin-actions">
+              <button class="admin-btn admin-btn-info" onclick="editCategory('${cat.id}')">Edit</button>
+              <button class="admin-btn admin-btn-danger" onclick="deleteCategory('${cat.id}')">Delete</button>
+            </div>
+          </div>
+          <p style="margin: 0; color: var(--text-secondary); font-size: 0.9rem;">${cat.description}</p>
+          <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 0.8rem; color: var(--text-muted);">
+            Posts: <strong>${DB.getPosts({ categoryId: cat.id }).length}</strong>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function loadLogs() {
+      const list = document.getElementById('logs-list');
+      const logs = JSON.parse(localStorage.getItem('admin_logs') || '[]');
+
+      if (logs.length === 0) {
+        list.innerHTML = '<tr><td colspan="4" class="admin-empty">No activity logs yet</td></tr>';
+        return;
+      }
+
+      list.innerHTML = logs.slice(-20).reverse().map(log => `
+        <tr>
+          <td>${escapeHtml(log.admin)}</td>
+          <td>${escapeHtml(log.action)}</td>
+          <td>${escapeHtml(log.details)}</td>
+          <td style="font-size: 0.85rem; color: var(--text-muted);">${formatDate(log.timestamp)}</td>
+        </tr>
+      `).join('');
+    }
+
+    function logAction(action, details) {
+      const user = getCurrentUser();
+      const logs = JSON.parse(localStorage.getItem('admin_logs') || '[]');
+      logs.push({ admin: user.displayName, action, details, timestamp: Date.now() });
+      localStorage.setItem('admin_logs', JSON.stringify(logs));
+    }
+
+    function filterUsers() {
+      const search = document.getElementById('user-search').value.toLowerCase();
+      const role = document.getElementById('user-role').value;
+
+      const users = DB.getUsers() || [];
+      const filtered = users.filter(u => {
+        const matchSearch = !search || u.username.toLowerCase().includes(search) || u.email.toLowerCase().includes(search);
+        const matchRole = !role || u.role === role;
+        return matchSearch && matchRole;
+      });
+
+      const list = document.getElementById('users-list');
+      list.innerHTML = filtered.map(u => `
+        <tr>
+          <td><strong>${escapeHtml(u.username)}</strong></td>
+          <td>${escapeHtml(u.email)}</td>
+          <td><span class="admin-badge admin-badge-${u.role || 'user'}">${u.role || 'user'}</span></td>
+          <td>${u.postCount || 0}</td>
+          <td>${formatDate(u.joined)}</td>
+          <td>
+            <div class="admin-actions">
+              <button class="admin-btn admin-btn-info" onclick="editUser('${u.id}')">Edit</button>
+              <button class="admin-btn admin-btn-danger" onclick="deleteUser('${u.id}')">Delete</button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function filterPosts() {
+      const search = document.getElementById('post-search').value.toLowerCase();
+      const posts = DB.getPosts() || [];
+      const filtered = posts.filter(p => !search || p.title.toLowerCase().includes(search));
+
+      const list = document.getElementById('posts-list');
+      list.innerHTML = filtered.slice(0, 20).map(p => {
+        const author = DB.getUser(p.authorId);
+        const comments = DB.getComments(p.id) || [];
+        return `
+          <tr>
+            <td><strong>${escapeHtml(p.title.slice(0, 30))}</strong></td>
+            <td>${author ? escapeHtml(author.displayName) : 'Unknown'}</td>
+            <td>${p.categoryId}</td>
+            <td>${p.views || 0}</td>
+            <td>${comments.length}</td>
+            <td>${formatDate(p.createdAt)}</td>
+            <td>
+              <div class="admin-actions">
+                <button class="admin-btn admin-btn-info" onclick="viewPost('${p.id}')">View</button>
+                <button class="admin-btn admin-btn-warning" onclick="pinPost('${p.id}')">Pin</button>
+                <button class="admin-btn admin-btn-danger" onclick="deletePost('${p.id}')">Delete</button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function filterComments() {
+      const search = document.getElementById('comment-search').value.toLowerCase();
+      const comments = DB._get(DB.KEYS.COMMENTS) || [];
+      const filtered = comments.filter(c => !search || c.content.toLowerCase().includes(search));
+
+      const list = document.getElementById('comments-list');
+      list.innerHTML = filtered.slice(0, 20).map(c => {
+        // Try direct lookup first
+        let author = DB.getUser(c.authorId);
+        
+        // If not found, try to find user by matching comment in their posts/comments
+        if (!author && c.authorId) {
+          const users = DB.getUsers() || [];
+          author = users.find(u => u.id === c.authorId);
+        }
+        
+        const post = DB.getPost(c.postId);
+        return `
+          <tr>
+            <td>${author ? escapeHtml(author.displayName) : ('Unknown' + (c.authorId ? ` (${c.authorId.slice(0, 8)})` : ''))}</td>
+            <td>${escapeHtml(c.content.slice(0, 40))}...</td>
+            <td>${post ? escapeHtml(post.title.slice(0, 20)) : 'Unknown'}</td>
+            <td>${formatDate(c.createdAt)}</td>
+            <td>
+              <div class="admin-actions">
+                <button class="admin-btn admin-btn-danger" onclick="deleteComment('${c.id}')">Delete</button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function filterReports() {
+      // TODO: Implement report filtering
+    }
+
+    function deleteUser(userId) {
+      if (!confirm('Are you sure? This action cannot be undone.')) return;
+      const users = DB.getUsers() || [];
+      const idx = users.findIndex(u => u.id === userId);
+      if (idx !== -1) {
+        users.splice(idx, 1);
+        DB._set(DB.KEYS.USERS, users);
+        logAction('Delete User', `Deleted user ID: ${userId}`);
+        loadUsers();
+        showToast('User deleted', 'success');
+      }
+    }
+
+    function deletePost(postId) {
+      if (!confirm('Delete this post? This cannot be undone.')) return;
+      const posts = DB.getPosts() || [];
+      const idx = posts.findIndex(p => p.id === postId);
+      if (idx !== -1) {
+        posts.splice(idx, 1);
+        DB._set(DB.KEYS.POSTS, posts);
+        logAction('Delete Post', `Deleted post ID: ${postId}`);
+        loadPosts();
+        showToast('Post deleted', 'success');
+      }
+    }
+
+    function deleteComment(commentId) {
+      if (!confirm('Delete this comment?')) return;
+      const comments = DB._get(DB.KEYS.COMMENTS) || [];
+      const idx = comments.findIndex(c => c.id === commentId);
+      if (idx !== -1) {
+        comments.splice(idx, 1);
+        DB._set(DB.KEYS.COMMENTS, comments);
+        logAction('Delete Comment', `Deleted comment ID: ${commentId}`);
+        loadComments();
+        showToast('Comment deleted', 'success');
+      }
+    }
+
+    function pinPost(postId) {
+      const posts = DB.getPosts() || [];
+      const idx = posts.findIndex(p => p.id === postId);
+      if (idx !== -1) {
+        posts[idx].pinned = !posts[idx].pinned;
+        DB._set(DB.KEYS.POSTS, posts);
+        logAction('Pin Post', `Toggled pin on post ID: ${postId}`);
+        loadPosts();
+        showToast('Post pin toggled', 'success');
+      }
+    }
+
+    function viewPost(postId) {
+      window.open(`post.html?id=${postId}`, '_blank');
+    }
+
+    function editUser(userId) {
+      const user = DB.getUser(userId);
+      if (!user) return;
+
+      const modal = document.getElementById('admin-modal');
+      document.getElementById('modal-title').textContent = 'Edit User';
+      document.getElementById('modal-content').innerHTML = `
+        <form onsubmit="saveUser(event, '${userId}')">
+          <div class="admin-form-group">
+            <label>Username</label>
+            <input type="text" value="${escapeHtml(user.username)}" readonly>
+          </div>
+          <div class="admin-form-group">
+            <label>Display Name</label>
+            <input type="text" id="edit-displayName" value="${escapeHtml(user.displayName)}" required>
+          </div>
+          <div class="admin-form-group">
+            <label>Email</label>
+            <input type="email" id="edit-email" value="${escapeHtml(user.email)}" required>
+          </div>
+          <div class="admin-form-group">
+            <label>Role</label>
+            <select id="edit-role" required>
+              <option value="user" ${user.role === 'user' ? 'selected' : ''}>User</option>
+              <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Admin</option>
+            </select>
+          </div>
+          <div class="admin-form-actions">
+            <button type="button" class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+            <button type="submit" class="btn btn-primary">Save Changes</button>
+          </div>
+        </form>
+      `;
+      modal.classList.add('active');
+    }
+
+    function saveUser(e, userId) {
+      e.preventDefault();
+      const users = DB.getUsers() || [];
+      const idx = users.findIndex(u => u.id === userId);
+      if (idx !== -1) {
+        users[idx].displayName = document.getElementById('edit-displayName').value;
+        users[idx].email = document.getElementById('edit-email').value;
+        users[idx].role = document.getElementById('edit-role').value;
+        DB._set(DB.KEYS.USERS, users);
+        logAction('Edit User', `Updated user ID: ${userId}`);
+        closeModal();
+        loadUsers();
+        showToast('User updated', 'success');
+      }
+    }
+
+    function openNewUserModal() {
+      const modal = document.getElementById('admin-modal');
+      document.getElementById('modal-title').textContent = 'New User';
+      document.getElementById('modal-content').innerHTML = `
+        <form onsubmit="createNewUser(event)">
+          <div class="admin-form-group">
+            <label>Username</label>
+            <input type="text" id="new-username" required>
+          </div>
+          <div class="admin-form-group">
+            <label>Email</label>
+            <input type="email" id="new-email" required>
+          </div>
+          <div class="admin-form-group">
+            <label>Display Name</label>
+            <input type="text" id="new-displayName" required>
+          </div>
+          <div class="admin-form-group">
+            <label>Role</label>
+            <select id="new-role">
+              <option value="user">User</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+          <div class="admin-form-actions">
+            <button type="button" class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+            <button type="submit" class="btn btn-primary">Create User</button>
+          </div>
+        </form>
+      `;
+      modal.classList.add('active');
+    }
+
+    function createNewUser(e) {
+      e.preventDefault();
+      const user = {
+        id: 'usr_' + Math.random().toString(36).slice(2, 9),
+        username: document.getElementById('new-username').value,
+        email: document.getElementById('new-email').value,
+        displayName: document.getElementById('new-displayName').value,
+        role: document.getElementById('new-role').value,
+        avatar: document.getElementById('new-displayName').value.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2),
+        joined: Date.now(),
+        postCount: 0
+      };
+
+      const users = DB.getUsers() || [];
+      users.push(user);
+      DB._set(DB.KEYS.USERS, users);
+      logAction('Create User', `Created user: ${user.username}`);
+      closeModal();
+      loadUsers();
+      showToast('User created', 'success');
+    }
+
+    function openNewCategoryModal() {
+      const modal = document.getElementById('admin-modal');
+      document.getElementById('modal-title').textContent = 'New Category';
+      document.getElementById('modal-content').innerHTML = `
+        <form onsubmit="createNewCategory(event)">
+          <div class="admin-form-group">
+            <label>Name</label>
+            <input type="text" id="new-cat-name" required>
+          </div>
+          <div class="admin-form-group">
+            <label>Description</label>
+            <textarea id="new-cat-desc"></textarea>
+          </div>
+          <div class="admin-form-group">
+            <label>Color</label>
+            <input type="color" id="new-cat-color" value="#10b981">
+          </div>
+          <div class="admin-form-actions">
+            <button type="button" class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+            <button type="submit" class="btn btn-primary">Create Category</button>
+          </div>
+        </form>
+      `;
+      modal.classList.add('active');
+    }
+
+    function createNewCategory(e) {
+      e.preventDefault();
+      const category = {
+        id: 'cat_' + Math.random().toString(36).slice(2, 9),
+        name: document.getElementById('new-cat-name').value,
+        description: document.getElementById('new-cat-desc').value,
+        color: document.getElementById('new-cat-color').value,
+        icon: '📂'
+      };
+
+      const categories = DB.getCategories && DB.getCategories() || [];
+      categories.push(category);
+      if (DB.setCategories) DB.setCategories(categories);
+      logAction('Create Category', `Created category: ${category.name}`);
+      closeModal();
+      loadCategories();
+      showToast('Category created', 'success');
+    }
+
+    function editCategory(catId) {
+      // TODO: Implement category editing
+    }
+
+    function deleteCategory(catId) {
+      if (!confirm('Delete this category?')) return;
+      // TODO: Implement category deletion
+    }
+
+    function openBulkActionModal() {
+      const modal = document.getElementById('admin-modal');
+      document.getElementById('modal-title').textContent = 'Bulk Moderation';
+      document.getElementById('modal-content').innerHTML = `
+        <div class="admin-form-group">
+          <label>Action</label>
+          <select id="bulk-action">
+            <option value="delete">Delete Posts</option>
+            <option value="pin">Pin Posts</option>
+            <option value="unpin">Unpin Posts</option>
+          </select>
+        </div>
+        <div class="admin-form-group">
+          <label>Category</label>
+          <select id="bulk-category">
+            <option value="">All Categories</option>
+          </select>
+        </div>
+        <div class="admin-form-actions">
+          <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+          <button class="btn btn-danger" onclick="executeBulkAction()">Execute</button>
+        </div>
+      `;
+      modal.classList.add('active');
+    }
+
+    function executeBulkAction() {
+      showToast('Bulk action executed', 'success');
+      closeModal();
+    }
+
+    function openBanListModal() {
+      const modal = document.getElementById('admin-modal');
+      document.getElementById('modal-title').textContent = 'Ban List';
+      document.getElementById('modal-content').innerHTML = `
+        <p>No banned users currently.</p>
+        <div class="admin-form-group">
+          <label>Ban User</label>
+          <input type="text" id="ban-user" placeholder="Username">
+        </div>
+        <div class="admin-form-actions">
+          <button class="btn btn-ghost" onclick="closeModal()">Close</button>
+          <button class="btn btn-danger" onclick="banUser()">Ban User</button>
+        </div>
+      `;
+      modal.classList.add('active');
+    }
+
+    function banUser() {
+      showToast('User banned', 'success');
+    }
+
+    function openFilterSettingsModal() {
+      const modal = document.getElementById('admin-modal');
+      document.getElementById('modal-title').textContent = 'Content Filters';
+      document.getElementById('modal-content').innerHTML = `
+        <div class="admin-form-group">
+          <label>Banned Words (comma-separated)</label>
+          <textarea id="banned-words" placeholder="word1, word2, word3"></textarea>
+        </div>
+        <div class="admin-form-actions">
+          <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+          <button class="btn btn-primary" onclick="saveFilters()">Save Filters</button>
+        </div>
+      `;
+      modal.classList.add('active');
+    }
+
+    function saveFilters() {
+      showToast('Filters saved', 'success');
+      closeModal();
+    }
+
+    function saveSettings() {
+      const settings = {
+        forumTitle: document.getElementById('forum-title').value,
+        forumDesc: document.getElementById('forum-desc').value,
+        allowRegistration: document.getElementById('allow-registration').checked
+      };
+      localStorage.setItem('forum_settings', JSON.stringify(settings));
+      logAction('Update Settings', 'Updated forum settings');
+      showToast('Settings saved', 'success');
+    }
+
+    function clearLogs() {
+      if (!confirm('Clear all activity logs?')) return;
+      localStorage.setItem('admin_logs', '[]');
+      loadLogs();
+      showToast('Logs cleared', 'success');
+    }
+
+    function closeModal() {
+      document.getElementById('admin-modal').classList.remove('active');
+    }
+
+    function logout() {
+      AuthService.logout();
+      window.location.href = 'index.html';
+    }
+  </script>
+</body>
+</html>

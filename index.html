@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Security Headers -->
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com; connect-src 'self' http://localhost:5000 http://127.0.0.1:5000">
+  <meta name="format-detection" content="telephone=no">
+  <meta name="theme-color" content="#111">
+  <title>RIKEO — Community Forum</title>
+  <meta name="description" content="The community forum for RIKEO — discuss videos, ideas, design, and tech.">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div id="header-mount"></div>
+
+<div class="container" style="padding:0">
+  <div class="layout">
+    <main class="main-col">
+
+      <!-- Hero -->
+      <section class="hero">
+        <p class="hero-eyebrow">RIKEO.TECH / FORUM</p>
+        <h1 class="hero-title">The conversation<br>that doesn't fit<br>in <em>comments</em>.</h1>
+        <p class="hero-sub">A community space for discussing ideas from the videos and beyond. Unfiltered, on-topic, worth your time.</p>
+        <div class="hero-cta">
+          <a href="#categories" class="btn btn-primary btn-lg">Browse Categories</a>
+          <button class="btn btn-outline btn-lg" onclick="requireAuth(u => window.location.href='create.html')">Start a Thread</button>
+        </div>
+        <div class="hero-stats" id="hero-stats"></div>
+      </section>
+
+      <!-- Categories -->
+      <section id="categories">
+        <div class="section-header">
+          <h2 class="section-title">Categories</h2>
+          <span class="section-count" id="cat-count"></span>
+        </div>
+        <div class="category-grid" id="category-grid"></div>
+      </section>
+
+      <!-- Recent Posts -->
+      <section>
+        <div class="section-header">
+          <h2 class="section-title">Recent Threads</h2>
+          <div class="flex gap-8">
+            <button class="filter-btn active" data-filter="all" onclick="setFilter(this,'all')">All</button>
+            <button class="filter-btn" data-filter="cat_video" onclick="setFilter(this,'cat_video')">Video</button>
+            <button class="filter-btn" data-filter="cat_design" onclick="setFilter(this,'cat_design')">Design</button>
+            <button class="filter-btn" data-filter="cat_tech" onclick="setFilter(this,'cat_tech')">Tech</button>
+          </div>
+        </div>
+        <div class="post-list" id="post-list"></div>
+        <div class="pagination" id="pagination"></div>
+      </section>
+
+    </main>
+
+    <div id="sidebar-mount"></div>
+  </div>
+</div>
+
+<div id="footer-mount"></div>
+<div id="toast-container"></div>
+
+<script src="js/authService.js"></script>
+<script src="js/emailVerification.js"></script>
+<script src="js/data.js"></script>
+<script src="js/app.js"></script>
+<script>
+  const PAGE_SIZE = 8;
+  let currentFilter = 'all';
+  let currentPage   = 1;
+
+  document.addEventListener('DOMContentLoaded', () => {
+    applyTheme();
+    document.getElementById('header-mount').innerHTML = renderHeader('home');
+    document.getElementById('sidebar-mount').innerHTML = renderSidebar();
+    document.getElementById('footer-mount').innerHTML = renderFooter();
+    renderStats();
+    renderCategories();
+    renderPosts();
+  });
+
+  function renderStats() {
+    const stats = DB.getStats();
+    document.getElementById('hero-stats').innerHTML = [
+      { val: formatNumber(stats.posts),    label: 'Threads' },
+      { val: formatNumber(stats.members),  label: 'Members' },
+      { val: formatNumber(stats.comments), label: 'Replies' },
+    ].map(s => `
+      <div class="stat-item">
+        <div class="stat-value">${s.val}</div>
+        <div class="stat-label">${s.label}</div>
+      </div>
+    `).join('');
+  }
+
+  function renderCategories() {
+    const catStats = DB.getCategoryStats();
+    document.getElementById('cat-count').textContent = catStats.length + ' categories';
+    document.getElementById('category-grid').innerHTML = catStats.map(c => `
+      <a href="forum.html?cat=${c.id}" class="category-card">
+        <span class="cat-icon" style="color:${c.color}">${c.icon}</span>
+        <div class="cat-name">${escapeHtml(c.name)}</div>
+        <div class="cat-desc">${escapeHtml(c.description)}</div>
+        <div class="cat-meta">
+          <span class="cat-stat"><span>${c.postCount}</span> posts</span>
+          <span class="cat-stat"><span>${c.commentCount}</span> replies</span>
+        </div>
+      </a>
+    `).join('');
+  }
+
+  function setFilter(btn, filter) {
+    document.querySelectorAll('[data-filter]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentFilter = filter;
+    currentPage   = 1;
+    renderPosts();
+  }
+
+  function renderPosts() {
+    const opts  = currentFilter === 'all' ? {} : { categoryId: currentFilter };
+    const posts  = DB.getPosts(opts);
+    const total  = posts.length;
+    const start  = (currentPage - 1) * PAGE_SIZE;
+    const page   = posts.slice(start, start + PAGE_SIZE);
+
+    const list = document.getElementById('post-list');
+
+    if (!page.length) {
+      list.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">◈</div>
+          <div class="empty-title">No threads yet</div>
+          <div class="empty-text">Be the first to start a conversation.</div>
+          <button class="btn btn-primary" onclick="requireAuth(u => window.location.href='create.html')">Create Thread</button>
+        </div>`;
+      document.getElementById('pagination').innerHTML = '';
+      return;
+    }
+
+    list.innerHTML = page.map(post => renderPostItem(post)).join('');
+    renderPagination(total, currentPage);
+  }
+
+  function renderPostItem(post) {
+    const author   = DB.getUser(post.authorId);
+    const cat      = DB.getCategory(post.categoryId);
+    const comments = DB.getComments(post.id);
+    const authorName = author ? escapeHtml(author.displayName) : 'Unknown';
+
+    return `
+      <a href="post.html?id=${post.id}" class="post-item">
+        <div class="post-main">
+          <div class="post-meta">
+            ${cat ? `<span class="post-category-tag" style="color:${cat.color};border-color:${cat.color}">${escapeHtml(cat.name)}</span>` : ''}
+            ${post.pinned ? `<span class="badge badge-accent">Pinned</span>` : ''}
+            ${post.videoUrl ? `<span class="badge" style="border-color:#666">▶ Video</span>` : ''}
+          </div>
+          <div class="post-title ${post.pinned ? 'is-new' : ''}">${escapeHtml(post.title)}</div>
+          <div class="post-excerpt">${stripHtml(post.content)}</div>
+          <div class="post-footer">
+            <span class="post-author">by <strong>${authorName}</strong></span>
+            <span class="post-date">${timeAgo(post.createdAt)}</span>
+            ${(post.tags || []).slice(0,2).map(t => `<span class="badge">${escapeHtml(t)}</span>`).join('')}
+          </div>
+        </div>
+        <div class="post-side">
+          <div class="post-replies"><strong>${comments.length}</strong> replies</div>
+          <div class="post-views">${formatNumber(post.views)} views</div>
+        </div>
+      </a>
+    `;
+  }
+
+  function renderPagination(total, page) {
+    const pages = Math.ceil(total / PAGE_SIZE);
+    if (pages <= 1) { document.getElementById('pagination').innerHTML = ''; return; }
+    let html = `<button class="page-btn" onclick="goPage(${page-1})" ${page===1?'disabled':''}>‹</button>`;
+    for (let i = 1; i <= pages; i++) {
+      html += `<button class="page-btn ${i===page?'active':''}" onclick="goPage(${i})">${i}</button>`;
+    }
+    html += `<button class="page-btn" onclick="goPage(${page+1})" ${page===pages?'disabled':''}>›</button>`;
+    document.getElementById('pagination').innerHTML = html;
+  }
+
+  function goPage(p) {
+    currentPage = p;
+    renderPosts();
+    document.querySelector('#post-list').scrollIntoView({ behavior: 'smooth' });
+  }
+</script>
+</body>
+</html>

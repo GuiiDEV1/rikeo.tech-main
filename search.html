@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Search — RIKEO Forum</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div id="header-mount"></div>
+
+<div class="container" style="padding:0">
+  <div class="layout">
+    <main class="main-col">
+
+      <div class="search-header">
+        <h1 class="search-title">Search</h1>
+        <div class="search-bar">
+          <input type="text" id="search-input" placeholder="Search threads, topics, tags…" maxlength="100"
+                 onkeydown="if(event.key==='Enter') doSearch()">
+          <button onclick="doSearch()">Search</button>
+        </div>
+      </div>
+
+      <!-- Filter bar -->
+      <div class="filter-bar" id="filter-bar">
+        <span class="label" style="margin-right:4px">Filter:</span>
+        <button class="filter-btn active" data-cat="" onclick="setFilter(this,'')">All</button>
+      </div>
+
+      <!-- Results -->
+      <div id="search-results">
+        <div class="empty-state">
+          <div class="empty-icon" style="font-size:3rem">◈</div>
+          <div class="empty-title">Enter a search term</div>
+          <div class="empty-text">Search threads, titles, and tags.</div>
+        </div>
+      </div>
+
+    </main>
+
+    <div id="sidebar-mount"></div>
+  </div>
+</div>
+
+<div id="footer-mount"></div>
+<div id="toast-container"></div>
+
+<script src="js/authService.js"></script>
+<script src="js/emailVerification.js"></script>
+<script src="js/data.js"></script>
+<script src="js/app.js"></script>
+<script>
+  let currentCat = '';
+
+  document.addEventListener('DOMContentLoaded', () => {
+    applyTheme();
+    document.getElementById('header-mount').innerHTML = renderHeader('search');
+    document.getElementById('sidebar-mount').innerHTML = renderSidebar();
+    document.getElementById('footer-mount').innerHTML = renderFooter();
+
+    // Generate category filters
+    const filterBar = document.getElementById('filter-bar');
+    DB.CATEGORIES.forEach(c => {
+      const btn = document.createElement('button');
+      btn.className = 'filter-btn';
+      btn.setAttribute('data-cat', c.id);
+      btn.textContent = c.name;
+      btn.addEventListener('click', () => setFilter(btn, c.id));
+      filterBar.appendChild(btn);
+    });
+
+    // Pre-fill from URL
+    const q = new URLSearchParams(location.search).get('q') || '';
+    if (q) {
+      document.getElementById('search-input').value = q;
+      doSearch();
+    }
+  });
+
+  function setFilter(btn, cat) {
+    document.querySelectorAll('[data-cat]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentCat = cat;
+    const q = document.getElementById('search-input').value.trim();
+    if (q) doSearch();
+  }
+
+  function doSearch() {
+    const q       = document.getElementById('search-input').value.trim();
+    const results = document.getElementById('search-results');
+
+    // Update URL without reload
+    const params = new URLSearchParams({ q });
+    history.replaceState(null, '', `?${params}`);
+
+    if (!q) {
+      results.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">◈</div>
+          <div class="empty-title">Enter a search term</div>
+        </div>`;
+      return;
+    }
+
+    const opts = { search: q };
+    if (currentCat) opts.categoryId = currentCat;
+    let posts = DB.getPosts(opts);
+
+    if (!posts.length) {
+      results.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">◈</div>
+          <div class="empty-title">No results for "${escapeHtml(q)}"</div>
+          <div class="empty-text">Try different keywords or browse categories.</div>
+          <a href="index.html" class="btn btn-outline" style="margin-top:16px">Browse Forum</a>
+        </div>`;
+      return;
+    }
+
+    results.innerHTML = `
+      <div class="section-header">
+        <span class="section-title">${posts.length} result${posts.length !== 1 ? 's' : ''} for "${escapeHtml(q)}"</span>
+      </div>
+      <div class="post-list">
+        ${posts.map(post => renderSearchResult(post, q)).join('')}
+      </div>
+    `;
+  }
+
+  function renderSearchResult(post, query) {
+    const author   = DB.getUser(post.authorId);
+    const cat      = DB.getCategory(post.categoryId);
+    const comments = DB.getComments(post.id);
+    const excerpt  = stripAndHighlight(post.content, query);
+    const titleHl  = highlight(escapeHtml(post.title), query);
+
+    return `
+      <a href="post.html?id=${post.id}" class="post-item">
+        <div class="post-main">
+          <div class="post-meta">
+            ${cat ? `<span class="post-category-tag" style="color:${cat.color};border-color:${cat.color}">${escapeHtml(cat.name)}</span>` : ''}
+            ${(post.tags||[]).filter(t => t.includes(query.toLowerCase())).map(t => `<span class="badge badge-accent">${escapeHtml(t)}</span>`).join('')}
+          </div>
+          <div class="post-title">${titleHl}</div>
+          <div class="post-excerpt">${excerpt}</div>
+          <div class="post-footer">
+            <span class="post-author">by <strong>${author ? escapeHtml(author.displayName) : 'Unknown'}</strong></span>
+            <span class="post-date">${timeAgo(post.createdAt)}</span>
+          </div>
+        </div>
+        <div class="post-side">
+          <div class="post-replies"><strong>${comments.length}</strong> replies</div>
+          <div class="post-views">${formatNumber(post.views)} views</div>
+        </div>
+      </a>
+    `;
+  }
+
+  function highlight(text, query) {
+    if (!query) return text;
+    const safe = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return text.replace(new RegExp(`(${safe})`, 'gi'), '<mark style="background:var(--accent-dim);color:var(--accent)">$1</mark>');
+  }
+
+  function stripAndHighlight(html, query) {
+    const d = document.createElement('div');
+    d.innerHTML = html;
+    const text    = escapeHtml(d.textContent || '');
+    const lower   = text.toLowerCase();
+    const qLower  = query.toLowerCase();
+    const idx     = lower.indexOf(qLower);
+    let excerpt   = text.slice(0, 180);
+    if (idx > 40) excerpt = '…' + text.slice(Math.max(0, idx - 40), idx + 140);
+    if (excerpt.length < text.length) excerpt += '…';
+    return highlight(excerpt, query);
+  }
+</script>
+</body>
+</html>

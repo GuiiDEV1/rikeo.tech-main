@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>New Thread — RIKEO Forum</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div id="header-mount"></div>
+
+<div class="container" style="padding:0">
+  <div class="layout">
+    <main class="main-col">
+
+      <div class="create-header">
+        <div class="breadcrumb" style="margin-bottom:16px">
+          <a href="index.html">Forum</a>
+          <span class="breadcrumb-sep">/</span>
+          <span style="color:var(--text-secondary);font-size:0.75rem">New Thread</span>
+        </div>
+        <h1 class="create-title">Start a Thread</h1>
+        <p class="create-sub">Share something worth reading.</p>
+      </div>
+
+      <!-- Auth gate -->
+      <div id="auth-gate" class="hidden" style="padding:60px 28px;text-align:center">
+        <div style="font-size:2rem;margin-bottom:16px;opacity:.3">◈</div>
+        <div style="font-family:var(--font-display);font-size:1rem;font-weight:700;margin-bottom:8px">Sign in to post</div>
+        <p style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:24px">You need an account to create threads.</p>
+        <button class="btn btn-primary" onclick="showAuthModal('login', initForm)">Sign In</button>
+        <button class="btn btn-outline" onclick="showAuthModal('register', initForm)" style="margin-left:8px">Create Account</button>
+      </div>
+
+      <!-- Form -->
+      <form class="create-form" id="post-form" onsubmit="handleSubmit(event)">
+
+        <!-- Category -->
+        <div class="form-group">
+          <label class="form-label" for="post-category">Category *</label>
+          <select class="form-select" id="post-category" required></select>
+        </div>
+
+        <!-- Title -->
+        <div class="form-group">
+          <label class="form-label" for="post-title">Thread Title *</label>
+          <input class="form-input" id="post-title" placeholder="Make it clear and specific" maxlength="120" required>
+          <div class="flex-between">
+            <span class="form-hint">Be specific. Good titles get more engagement.</span>
+            <span class="char-count" id="title-count">0 / 120</span>
+          </div>
+        </div>
+
+        <!-- Content -->
+        <div class="form-group">
+          <label class="form-label" for="post-content">Content *</label>
+          <div class="editor-toolbar">
+            <button type="button" class="toolbar-btn" onclick="insertFormat('bold')" title="Bold"><strong>B</strong></button>
+            <button type="button" class="toolbar-btn" onclick="insertFormat('italic')" title="Italic"><em>I</em></button>
+            <button type="button" class="toolbar-btn" onclick="insertFormat('quote')" title="Blockquote">"</button>
+            <div class="toolbar-sep"></div>
+            <button type="button" class="toolbar-btn" onclick="insertFormat('h2')" title="Heading">H2</button>
+            <button type="button" class="toolbar-btn" onclick="insertFormat('h3')" title="Heading">H3</button>
+            <div class="toolbar-sep"></div>
+            <button type="button" class="toolbar-btn" onclick="insertFormat('bullet')" title="List">•—</button>
+            <button type="button" class="toolbar-btn" onclick="insertFormat('code')" title="Code">`_`</button>
+            <div class="toolbar-sep"></div>
+            <button type="button" class="toolbar-btn" onclick="togglePreview()" title="Toggle Preview">Preview</button>
+          </div>
+          <textarea class="form-textarea" id="post-content" placeholder="Write your post. Use double line breaks for paragraphs." rows="12" maxlength="20000" required style="min-height:240px;border-top:none"></textarea>
+          <div class="char-count" id="content-count">0 / 20000</div>
+          <!-- Preview pane -->
+          <div id="preview-pane" class="hidden" style="border:1px solid var(--border-mid);padding:24px;background:var(--surface);margin-top:-1px">
+            <div style="font-family:var(--font-mono);font-size:0.65rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-secondary);margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border)">Preview</div>
+            <div class="post-content" id="preview-content"></div>
+          </div>
+        </div>
+
+        <!-- Video URL -->
+        <div class="form-group">
+          <label class="form-label" for="post-video">YouTube Video URL <span style="font-weight:400;color:var(--text-secondary)">(optional)</span></label>
+          <input class="form-input" id="post-video" placeholder="https://youtube.com/watch?v=..." type="url">
+          <span class="form-hint">Embed a related video at the top of your post.</span>
+          <div id="video-preview" class="hidden" style="margin-top:12px">
+            <div class="video-embed" id="video-embed-preview"></div>
+          </div>
+        </div>
+
+        <!-- Image uploads -->
+        <div class="form-group">
+          <label class="form-label">Images <span style="font-weight:400;color:var(--text-secondary)">(optional)</span></label>
+          <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()" 
+               ondragover="handleDragOver(event)" ondrop="handleDrop(event)" ondragleave="this.classList.remove('drag-over')">
+            <div class="upload-zone-icon">⊕</div>
+            <div class="upload-zone-text">Click to upload or drag and drop images</div>
+            <div class="upload-zone-hint">PNG, JPG, GIF up to 5MB each</div>
+          </div>
+          <input type="file" id="file-input" accept="image/*" multiple style="display:none" onchange="handleFileSelect(event)">
+          <div class="upload-preview" id="upload-preview"></div>
+        </div>
+
+        <!-- Tags -->
+        <div class="form-group">
+          <label class="form-label" for="tags-field">Tags <span style="font-weight:400;color:var(--text-secondary)">(optional)</span></label>
+          <div class="tags-input" id="tags-container" onclick="document.getElementById('tags-field').focus()">
+            <input type="text" id="tags-field" class="tags-input-field" placeholder="Add tags…" maxlength="30">
+          </div>
+          <span class="form-hint">Press Enter or comma to add a tag. Up to 5 tags.</span>
+        </div>
+
+        <!-- Submit -->
+        <div style="display:flex;gap:12px;align-items:center;padding-top:8px;border-top:1px solid var(--border)">
+          <button type="submit" class="btn btn-primary btn-lg" id="submit-btn">Publish Thread</button>
+          <a href="index.html" class="btn btn-outline btn-lg">Cancel</a>
+          <span id="form-error" class="form-error hidden" style="margin-left:auto"></span>
+        </div>
+
+      </form>
+    </main>
+
+    <!-- Side: tips -->
+    <aside class="side-col">
+      <div class="widget">
+        <div class="widget-title">Posting Guidelines</div>
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div style="display:flex;gap:10px">
+            <span style="color:var(--accent);flex-shrink:0;padding-top:1px">◈</span>
+            <div>
+              <div style="font-size:0.82rem;font-weight:600;margin-bottom:3px">Be specific</div>
+              <div style="font-size:0.75rem;color:var(--text-secondary);line-height:1.6">Vague titles get skipped. Tell people exactly what you're posting about.</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:10px">
+            <span style="color:var(--accent);flex-shrink:0;padding-top:1px">◉</span>
+            <div>
+              <div style="font-size:0.82rem;font-weight:600;margin-bottom:3px">Add context</div>
+              <div style="font-size:0.75rem;color:var(--text-secondary);line-height:1.6">Don't just drop a link or claim. Explain why it matters.</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:10px">
+            <span style="color:var(--accent);flex-shrink:0;padding-top:1px">◻</span>
+            <div>
+              <div style="font-size:0.82rem;font-weight:600;margin-bottom:3px">One topic per thread</div>
+              <div style="font-size:0.75rem;color:var(--text-secondary);line-height:1.6">Keep threads focused. Easier to discuss, easier to find later.</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:10px">
+            <span style="color:var(--accent);flex-shrink:0;padding-top:1px">✦</span>
+            <div>
+              <div style="font-size:0.82rem;font-weight:600;margin-bottom:3px">Engage back</div>
+              <div style="font-size:0.75rem;color:var(--text-secondary);line-height:1.6">The best posters also reply to others.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="widget">
+        <div class="widget-title">Formatting Tips</div>
+        <div style="font-family:var(--font-mono);font-size:0.72rem;color:var(--text-secondary);line-height:2">
+          <div>Double newline → paragraph</div>
+          <div style="color:var(--accent)">## Heading</div>
+          <div style="color:var(--accent)">### Sub-heading</div>
+          <div style="color:var(--accent)">> Blockquote</div>
+          <div style="color:var(--accent)">`inline code`</div>
+          <div style="color:var(--accent)">**bold** _italic_</div>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<div id="footer-mount"></div>
+<div id="toast-container"></div>
+
+<script src="js/authService.js"></script>
+<script src="js/emailVerification.js"></script>
+<script src="js/data.js"></script>
+<script src="js/app.js"></script>
+<script>
+  let uploadedImages = [];
+  let tags = [];
+  const defaultCatId = new URLSearchParams(location.search).get('cat') || '';
+
+  document.addEventListener('DOMContentLoaded', () => {
+    applyTheme();
+    document.getElementById('header-mount').innerHTML = renderHeader('home');
+    document.getElementById('footer-mount').innerHTML = renderFooter();
+
+    const user = getCurrentUser();
+    if (!user) {
+      document.getElementById('auth-gate').classList.remove('hidden');
+      document.getElementById('post-form').classList.add('hidden');
+    } else {
+      initForm(user);
+    }
+  });
+
+  function initForm() {
+    document.getElementById('auth-gate').classList.add('hidden');
+    document.getElementById('post-form').classList.remove('hidden');
+
+    // Populate categories
+    const select = document.getElementById('post-category');
+    select.innerHTML = '<option value="">Select a category…</option>' +
+      DB.CATEGORIES.map(c => `<option value="${c.id}" ${c.id === defaultCatId ? 'selected' : ''}>${c.name}</option>`).join('');
+
+    // Char counters
+    document.getElementById('post-title').addEventListener('input', function() {
+      document.getElementById('title-count').textContent = `${this.value.length} / 120`;
+    });
+    document.getElementById('post-content').addEventListener('input', function() {
+      document.getElementById('content-count').textContent = `${this.value.length} / 20000`;
+    });
+
+    // Video preview
+    document.getElementById('post-video').addEventListener('input', function() {
+      const url = this.value.trim();
+      const preview = document.getElementById('video-preview');
+      const embed   = document.getElementById('video-embed-preview');
+      
+      if (!url) {
+        embed.innerHTML = '';
+        preview.classList.add('hidden');
+        return;
+      }
+      
+      // Validate URL is a valid YouTube URL
+      if (!/^https?:\/\/(www\.)?(youtube\.com|youtu\.be)/.test(url)) {
+        embed.innerHTML = '';
+        preview.classList.add('hidden');
+        return;
+      }
+      
+      const id = extractYouTubeId(url);
+      if (id) {
+        embed.innerHTML = `<iframe src="https://www.youtube.com/embed/${id}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen title="Video preview"></iframe>`;
+        preview.classList.remove('hidden');
+      } else {
+        embed.innerHTML = '';
+        preview.classList.add('hidden');
+      }
+    });
+
+    // Tags input
+    document.getElementById('tags-field').addEventListener('keydown', handleTagInput);
+  }
+
+  function handleTagInput(e) {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      const val = e.target.value.trim().toLowerCase().replace(/[^a-z0-9-]/g,'');
+      
+      // Validation: tag must be between 2-20 characters and not duplicate or reserved
+      if (!val || val.length < 2 || val.length > 20) { 
+        showToast('Tags must be 2-20 characters', 'error');
+        e.target.value = ''; 
+        return; 
+      }
+      if (tags.length >= 5 || tags.includes(val)) { 
+        e.target.value = ''; 
+        return; 
+      }
+      
+      tags.push(val);
+      e.target.value = '';
+      renderTags();
+    } else if (e.key === 'Backspace' && !e.target.value && tags.length) {
+      tags.pop();
+      renderTags();
+    }
+  }
+
+  function renderTags() {
+    const container = document.getElementById('tags-container');
+    // Remove existing chips
+    container.querySelectorAll('.tag-chip').forEach(el => el.remove());
+    // Insert chips before the input
+    const input = document.getElementById('tags-field');
+    tags.forEach((tag, i) => {
+      const chip = document.createElement('div');
+      chip.className = 'tag-chip';
+      chip.innerHTML = `${escapeHtml(tag)}<button type="button" class="tag-chip-remove" onclick="removeTag(${i})">×</button>`;
+      container.insertBefore(chip, input);
+    });
+    input.placeholder = tags.length >= 5 ? 'Max 5 tags' : 'Add tags…';
+  }
+
+  function removeTag(i) {
+    tags.splice(i, 1);
+    renderTags();
+  }
+
+  // ── Editor toolbar ─────────────────────────────────────────
+  function insertFormat(type) {
+    const ta  = document.getElementById('post-content');
+    const sel = { start: ta.selectionStart, end: ta.selectionEnd };
+    const selected = ta.value.slice(sel.start, sel.end);
+    const map = {
+      bold:   { wrap: ['**','**'], default: 'bold text' },
+      italic: { wrap: ['_','_'],   default: 'italic text' },
+      quote:  { wrap: ['> ',''],  default: 'quote' },
+      h2:     { wrap: ['## ',''], default: 'Heading' },
+      h3:     { wrap: ['### ',''],default: 'Sub-heading' },
+      code:   { wrap: ['`','`'],  default: 'code' },
+      bullet: { wrap: ['• ',''],  default: 'item' },
+    };
+    const fmt = map[type];
+    if (!fmt) return;
+    const text   = selected || fmt.default;
+    const before = ta.value.slice(0, sel.start);
+    const after  = ta.value.slice(sel.end);
+    const insert = fmt.wrap[0] + text + fmt.wrap[1];
+    ta.value     = before + insert + after;
+    ta.focus();
+    ta.selectionStart = sel.start + fmt.wrap[0].length;
+    ta.selectionEnd   = sel.start + fmt.wrap[0].length + text.length;
+    ta.dispatchEvent(new Event('input'));
+  }
+
+  let previewVisible = false;
+  function togglePreview() {
+    previewVisible = !previewVisible;
+    const textarea = document.getElementById('post-content');
+    const pane     = document.getElementById('preview-pane');
+    if (previewVisible) {
+      const content = parseMarkdown(textarea.value);
+      document.getElementById('preview-content').innerHTML = sanitizeHTML(content);
+      pane.classList.remove('hidden');
+      textarea.classList.add('hidden');
+    } else {
+      pane.classList.add('hidden');
+      textarea.classList.remove('hidden');
+    }
+  }
+
+  // Very simple markdown parser for preview
+  function parseMarkdown(text) {
+    if (!text) return '';
+    return text
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+      .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+      .replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>')
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/_(.+?)_/g, '<em>$1</em>')
+      .replace(/`(.+?)`/g, '<code>$1</code>')
+      .split(/\n\n+/)
+      .map(block => {
+        if (block.startsWith('<h') || block.startsWith('<blockquote')) return block;
+        return `<p>${block.replace(/\n/g, '<br>')}</p>`;
+      })
+      .join('');
+  }
+
+  // ── File uploads ──────────────────────────────────────────
+  function handleDragOver(e) {
+    e.preventDefault();
+    document.getElementById('upload-zone').classList.add('drag-over');
+  }
+
+  function handleDrop(e) {
+    e.preventDefault();
+    document.getElementById('upload-zone').classList.remove('drag-over');
+    const files = [...e.dataTransfer.files].filter(f => f.type.startsWith('image/'));
+    processFiles(files);
+  }
+
+  function handleFileSelect(e) {
+    processFiles([...e.target.files]);
+    e.target.value = '';
+  }
+
+  function processFiles(files) {
+    const remaining = 5 - uploadedImages.length;
+    if (remaining <= 0) { showToast('Maximum 5 images per post.', 'error'); return; }
+    files.slice(0, remaining).forEach(file => {
+      if (file.size > 5 * 1024 * 1024) { showToast(`${file.name} is too large (max 5MB).`, 'error'); return; }
+      const reader = new FileReader();
+      reader.onload = e => {
+        uploadedImages.push({ name: file.name, dataUrl: e.target.result });
+        renderUploadPreview();
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function renderUploadPreview() {
+    document.getElementById('upload-preview').innerHTML = uploadedImages.map((img, i) => `
+      <div class="upload-thumb">
+        <img src="${img.dataUrl}" alt="${escapeHtml(img.name)}">
+        <button type="button" class="upload-thumb-remove" onclick="removeImage(${i})" title="Remove">×</button>
+      </div>
+    `).join('');
+  }
+
+  function removeImage(i) {
+    uploadedImages.splice(i, 1);
+    renderUploadPreview();
+  }
+
+  // ── Submit ─────────────────────────────────────────────────
+  function handleSubmit(e) {
+    e.preventDefault();
+    const user = getCurrentUser();
+    if (!user) { showAuthModal('login', initForm); return; }
+
+    const category = document.getElementById('post-category').value;
+    const title    = document.getElementById('post-title').value.trim();
+    const rawContent = document.getElementById('post-content').value.trim();
+    const videoUrl = document.getElementById('post-video').value.trim();
+    const errorEl  = document.getElementById('form-error');
+
+    if (!category) { showError(errorEl, 'Please select a category.'); return; }
+    if (!title)    { showError(errorEl, 'Please add a title.'); return; }
+    if (!rawContent) { showError(errorEl, 'Please write some content.'); return; }
+    
+    // Security: Validate content lengths
+    if (title.length > 300) { showError(errorEl, 'Title too long (max 300 chars).'); return; }
+    if (rawContent.length > 10000) { showError(errorEl, 'Content too long (max 10,000 chars).'); return; }
+    if (videoUrl && videoUrl.length > 2000) { showError(errorEl, 'Video URL too long.'); return; }
+    
+    // Validate video URL is a YouTube URL if provided
+    if (videoUrl && !/^https?:\/\/(www\.)?(youtube\.com|youtu\.be)/.test(videoUrl)) {
+      showError(errorEl, 'Please enter a valid YouTube URL.');
+      return;
+    }
+
+    const content = parseMarkdown(rawContent);
+
+    const submitBtn = document.getElementById('submit-btn');
+    const originalText = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Publishing…';
+
+    try {
+      const post = DB.createPost({
+        categoryId: category,
+        title,
+        content,
+        authorId: user.id,
+        tags,
+        videoUrl,
+        images: uploadedImages.map(i => i.dataUrl),
+      });
+      
+      // Clear form state before redirect
+      document.getElementById('post-form').reset();
+      uploadedImages = [];
+      tags = [];
+      
+      showToast('Thread published.', 'success');
+      setTimeout(() => { window.location.href = `post.html?id=${post.id}`; }, 500);
+    } catch (err) {
+      console.error('Post creation error:', err);
+      showError(errorEl, 'Something went wrong. Try again.');
+      submitBtn.disabled = false;
+      submitBtn.textContent = originalText;
+    }
+  }
+
+  function showError(el, msg) {
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.remove('hidden');
+    setTimeout(() => el.classList.add('hidden'), 4000);
+  }
+</script>
+</body>
+</html>

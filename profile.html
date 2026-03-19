@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Profile — RIKEO Forum</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div id="header-mount"></div>
+
+<div class="container" style="padding:0">
+  <div class="layout">
+    <main class="main-col" id="main-content">
+      <div class="empty-state"><div class="empty-icon" style="animation:pulse 1s infinite">◈</div></div>
+    </main>
+    <div id="sidebar-mount"></div>
+  </div>
+</div>
+
+<div id="footer-mount"></div>
+<div id="toast-container"></div>
+
+<script src="js/authService.js"></script>
+<script src="js/emailVerification.js"></script>
+<script src="js/data.js"></script>
+<script src="js/app.js"></script>
+<script>
+  const urlUsername = new URLSearchParams(location.search).get('u');
+  let activeTab = 'posts';
+  let editMode  = false;
+
+  document.addEventListener('DOMContentLoaded', () => {
+    applyTheme();
+    document.getElementById('header-mount').innerHTML = renderHeader('home');
+    document.getElementById('sidebar-mount').innerHTML = renderSidebar();
+    document.getElementById('footer-mount').innerHTML = renderFooter();
+
+    const currentUser = getCurrentUser();
+
+    // If no URL param, show current user's profile or prompt login
+    let profileUser;
+    if (urlUsername) {
+      profileUser = DB.getUserByUsername(urlUsername);
+    } else {
+      if (!currentUser) {
+        document.getElementById('main-content').innerHTML = `
+          <div class="empty-state">
+            <div class="empty-icon">◈</div>
+            <div class="empty-title">Sign in to view your profile</div>
+            <p class="empty-text">Create an account or sign in to manage your profile.</p>
+            <button class="btn btn-primary" onclick="showAuthModal('login', () => location.reload())">Sign In</button>
+          </div>`;
+        return;
+      }
+      profileUser = currentUser;
+    }
+
+    if (!profileUser) {
+      document.getElementById('main-content').innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">◈</div>
+          <div class="empty-title">User not found</div>
+          <a href="index.html" class="btn btn-outline" style="margin-top:16px">Back to Forum</a>
+        </div>`;
+      return;
+    }
+
+    renderProfile(profileUser, currentUser);
+  });
+
+  function renderProfile(user, currentUser) {
+    const isOwn = currentUser && currentUser.id === user.id;
+    document.title = `${user.displayName} — RIKEO Forum`;
+
+    const userPosts = DB.getPosts({ authorId: user.id });
+    const joined    = formatDate(user.joined);
+    // Count all comments by this user across all posts
+    const allPosts = DB.getPosts();
+    const userReplyCount = allPosts.reduce((total, p) => {
+      return total + DB.getComments(p.id).filter(c => c.authorId === user.id).length;
+    }, 0);
+
+    document.getElementById('main-content').innerHTML = `
+      <!-- Profile header -->
+      <div class="profile-header">
+        <div class="profile-avatar-container" id="profile-avatar-container" style="position:relative">
+          <img id="profile-avatar-image" class="profile-avatar-image" src="" alt="Profile Picture" style="display:none;">
+          <div class="profile-avatar" id="profile-avatar-display" style="${user.avatar && user.avatar.startsWith('data:image/') ? 'display:none;' : ''}">${user.avatar && user.avatar.startsWith('data:image/') ? '' : escapeHtml(user.avatar)}</div>
+          ${isOwn ? `<button class="profile-avatar-upload-btn" onclick="triggerImageUpload()" title="Upload profile picture">📷</button>` : ''}
+          <input type="file" id="profile-image-input" accept="image/*" style="display:none" onchange="handleImageUpload(event)">
+        </div>
+        <div style="flex:1">
+          <h1 class="profile-name" id="profile-name-display">${escapeHtml(user.displayName)}</h1>
+          <div class="profile-handle" id="profile-handle-display">@${escapeHtml(user.username)}</div>
+          <p class="profile-bio" id="profile-bio-display">${user.bio ? escapeHtml(user.bio) : '<span style="color:var(--text-muted);font-style:italic">No bio yet.</span>'}</p>
+          <div class="profile-stats">
+            <div class="profile-stat">
+              <div class="profile-stat-val">${userPosts.length}</div>
+              <div class="profile-stat-key">Posts</div>
+            </div>
+            <div class="profile-stat">
+              <div class="profile-stat-val">${userReplyCount}</div>
+              <div class="profile-stat-key">Replies</div>
+            </div>
+            <div class="profile-stat">
+              <div class="profile-stat-val" style="font-size:0.85rem">${joined}</div>
+              <div class="profile-stat-key">Joined</div>
+            </div>
+          </div>
+        </div>
+        ${isOwn ? `
+          <div style="flex-shrink:0">
+            <button class="btn btn-outline btn-sm" onclick="toggleEdit()" id="edit-btn">Edit Profile</button>
+          </div>
+        ` : ''}
+      </div>
+
+      <!-- Edit form (hidden by default) -->
+      ${isOwn ? `
+        <div id="edit-form" class="hidden" style="padding:24px 28px;border-bottom:1px solid var(--border);background:var(--surface)">
+          <div style="display:flex;flex-direction:column;gap:16px;max-width:500px">
+            <div class="form-group">
+              <label class="form-label">Display Name</label>
+              <input class="form-input" id="edit-displayname" value="${escapeHtml(user.displayName)}" maxlength="40">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Bio</label>
+              <textarea class="form-textarea" id="edit-bio" maxlength="280" rows="3" style="min-height:80px">${escapeHtml(user.bio || '')}</textarea>
+              <div class="char-count" id="edit-bio-count">${(user.bio||'').length} / 280</div>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-primary btn-sm" onclick="saveProfile('${user.id}')">Save Changes</button>
+              <button class="btn btn-outline btn-sm" onclick="toggleEdit()">Cancel</button>
+            </div>
+          </div>
+        </div>
+      ` : ''}
+
+      <!-- Tabs -->
+      <div class="profile-tabs">
+        <button class="profile-tab active" id="tab-posts" onclick="switchTab('posts')">Threads (${userPosts.length})</button>
+        <button class="profile-tab" id="tab-replies" onclick="switchTab('replies')">Replies</button>
+        ${isOwn ? `<button class="profile-tab" id="tab-settings" onclick="switchTab('settings')">Account Settings</button>` : ''}
+      </div>
+
+      <!-- Tab content -->
+      <div id="tab-content"></div>
+    `;
+
+    // Bio char count
+    const bioInput = document.getElementById('edit-bio');
+    const bioCount = document.getElementById('edit-bio-count');
+    if (bioInput && bioCount) {
+      bioInput.addEventListener('input', () => {
+        bioCount.textContent = `${bioInput.value.length} / 280`;
+      });
+    }
+
+    window._profileUser   = user;
+    window._profileIsOwn  = isOwn;
+    renderTab('posts');
+
+    // Load profile picture if exists
+    const img = document.getElementById('profile-avatar-image');
+    const avatar = document.getElementById('profile-avatar-display');
+    
+    // Check if avatar is a base64 image from backend
+    if (user.avatar && user.avatar.startsWith('data:image/')) {
+      if (img) {
+        img.src = user.avatar;
+        img.style.display = 'block';
+      }
+      if (avatar) {
+        avatar.style.display = 'none';
+      }
+    } else {
+      // Check localStorage for pfp
+      const pfpData = DB.getUserProfilePicture(user.id);
+      if (pfpData && img && avatar) {
+        img.src = pfpData;
+        img.style.display = 'block';
+        avatar.style.display = 'none';
+      }
+    }
+  }
+
+  function switchTab(tab) {
+    activeTab = tab;
+    document.querySelectorAll('.profile-tab').forEach(b => b.classList.remove('active'));
+    const btn = document.getElementById('tab-' + tab);
+    if (btn) btn.classList.add('active');
+    renderTab(tab);
+  }
+
+  function renderTab(tab) {
+    const user  = window._profileUser;
+    const isOwn = window._profileIsOwn;
+    const container = document.getElementById('tab-content');
+
+    if (tab === 'posts') {
+      const posts = DB.getPosts({ authorId: user.id });
+      if (!posts.length) {
+        container.innerHTML = `<div class="empty-state"><div class="empty-icon">◈</div><div class="empty-title">No threads yet</div></div>`;
+        return;
+      }
+      container.innerHTML = posts.map(post => {
+        const cat      = DB.getCategory(post.categoryId);
+        const comments = DB.getComments(post.id);
+        return `
+          <a href="post.html?id=${post.id}" class="post-item">
+            <div class="post-main">
+              <div class="post-meta">
+                ${cat ? `<span class="post-category-tag" style="color:${cat.color};border-color:${cat.color}">${escapeHtml(cat.name)}</span>` : ''}
+              </div>
+              <div class="post-title">${escapeHtml(post.title)}</div>
+              <div class="post-footer">
+                <span class="post-date">${timeAgo(post.createdAt)}</span>
+              </div>
+            </div>
+            <div class="post-side">
+              <div class="post-replies"><strong>${comments.length}</strong> replies</div>
+              <div class="post-views">${formatNumber(post.views)} views</div>
+            </div>
+          </a>`;
+      }).join('');
+
+    } else if (tab === 'replies') {
+      // Get all comments by this user across all posts
+      const allPosts    = DB.getPosts();
+      const allComments = [];
+      allPosts.forEach(p => {
+        DB.getComments(p.id).filter(c => c.authorId === user.id).forEach(c => {
+          allComments.push({ ...c, postTitle: p.title, postId: p.id });
+        });
+      });
+      allComments.sort((a, b) => b.createdAt - a.createdAt);
+
+      if (!allComments.length) {
+        container.innerHTML = `<div class="empty-state"><div class="empty-icon">◈</div><div class="empty-title">No replies yet</div></div>`;
+        return;
+      }
+      container.innerHTML = allComments.map(c => `
+        <a href="post.html?id=${c.postId}#comment-${c.id}" class="post-item">
+          <div class="post-main">
+            <div class="post-excerpt" style="margin-bottom:8px">${escapeHtml(c.content.slice(0, 200))}${c.content.length > 200 ? '…' : ''}</div>
+            <div class="post-footer">
+              <span style="font-size:0.72rem;color:var(--text-secondary)">in reply to</span>
+              <strong style="font-size:0.78rem">${escapeHtml(c.postTitle)}</strong>
+              <span class="post-date">${timeAgo(c.createdAt)}</span>
+            </div>
+          </div>
+          <div class="post-side">
+            <div class="post-views">↑ ${c.votes || 0}</div>
+          </div>
+        </a>
+      `).join('');
+
+    } else if (tab === 'settings' && isOwn) {
+      const currentUser = getCurrentUser();
+      const email = currentUser.email || '';
+      const isPrivate = DB.getUserPrivacy(currentUser.id);
+      const blockedUsers = DB.getBlockedUsers(currentUser.id);
+      const theme = DB.getUserTheme(currentUser.id);
+
+      container.innerHTML = `
+        <div style="padding:28px;max-width:520px">
+
+          <!-- Account Info -->
+          <div style="margin-bottom:32px;padding-bottom:28px;border-bottom:1px solid var(--border)">
+            <div class="form-label" style="margin-bottom:16px;text-transform:uppercase;font-size:0.75rem;letter-spacing:0.1em;color:var(--text-secondary)">Account</div>
+            <div class="form-group">
+              <label class="form-label">Username</label>
+              <input class="form-input" value="@${escapeHtml(currentUser.username)}" disabled style="opacity:0.6">
+              <span class="form-hint">Username cannot be changed.</span>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Member Since</label>
+              <input class="form-input" value="${formatDate(currentUser.joined)}" disabled style="opacity:0.6">
+            </div>
+          </div>
+
+          <!-- Email & Notifications -->
+          <div style="margin-bottom:32px;padding-bottom:28px;border-bottom:1px solid var(--border)">
+            <div class="form-label" style="margin-bottom:16px;text-transform:uppercase;font-size:0.75rem;letter-spacing:0.1em;color:var(--text-secondary)">Communication</div>
+            <div class="form-group">
+              <label class="form-label">Email Address</label>
+              <input class="form-input" type="email" id="settings-email" value="${email}" placeholder="your@email.com">
+              <span class="form-hint">Optional. Used for account recovery and notifications.</span>
+            </div>
+          </div>
+
+          <!-- Privacy & Security -->
+          <div style="margin-bottom:32px;padding-bottom:28px;border-bottom:1px solid var(--border)">
+            <div class="form-label" style="margin-bottom:16px;text-transform:uppercase;font-size:0.75rem;letter-spacing:0.1em;color:var(--text-secondary)">Privacy & Security</div>
+            
+            <div style="margin-bottom:16px">
+              <label style="display:flex;align-items:center;gap:12px;cursor:pointer">
+                <input type="checkbox" id="settings-private" ${isPrivate ? 'checked' : ''} style="width:16px;height:16px">
+                <span>Make my profile private</span>
+              </label>
+              <span class="form-hint" style="margin-top:6px">Hide your posts and activity from other users.</span>
+            </div>
+
+            <div class="form-group" style="margin-top:24px">
+              <label class="form-label">Change Password</label>
+              <input class="form-input" type="password" id="settings-old-password" placeholder="Current password">
+              <input class="form-input" type="password" id="settings-new-password" placeholder="New password" style="margin-top:8px">
+              <input class="form-input" type="password" id="settings-confirm-password" placeholder="Confirm new password" style="margin-top:8px">
+              <button class="btn btn-outline btn-sm" onclick="savePasswordChange()" style="margin-top:8px">Update Password</button>
+            </div>
+          </div>
+
+          <!-- Blocked Users -->
+          <div style="margin-bottom:32px;padding-bottom:28px;border-bottom:1px solid var(--border)">
+            <div class="form-label" style="margin-bottom:16px;text-transform:uppercase;font-size:0.75rem;letter-spacing:0.1em;color:var(--text-secondary)">Blocked Users</div>
+            ${blockedUsers.length ? `
+              <div style="display:flex;flex-direction:column;gap:8px">
+                ${blockedUsers.map(u => `
+                  <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--surface-2);border-radius:4px">
+                    <div>
+                      <div style="font-weight:600;font-size:0.85rem">${escapeHtml(u.displayName)}</div>
+                      <div style="font-size:0.75rem;color:var(--text-secondary)">@${escapeHtml(u.username)}</div>
+                    </div>
+                    <button class="btn btn-outline btn-sm" onclick="unblockUserAction('${u.id}')">Unblock</button>
+                  </div>
+                `).join('')}
+              </div>
+            ` : `
+              <p style="color:var(--text-secondary);font-size:0.85rem">You haven't blocked any users yet.</p>
+            `}
+          </div>
+
+          <!-- Preferences -->
+          <div style="margin-bottom:32px;padding-bottom:28px;border-bottom:1px solid var(--border)">
+            <div class="form-label" style="margin-bottom:16px;text-transform:uppercase;font-size:0.75rem;letter-spacing:0.1em;color:var(--text-secondary)">Preferences</div>
+            <div class="form-group">
+              <label class="form-label">Theme</label>
+              <select class="form-select" id="settings-theme" style="cursor:pointer">
+                <option value="light" ${theme === 'light' ? 'selected' : ''}>Light</option>
+                <option value="dark" ${theme === 'dark' ? 'selected' : ''}>Dark</option>
+                <option value="auto" ${theme === 'auto' ? 'selected' : ''}>Auto (System)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Save Settings -->
+          <div style="display:flex;gap:8px;margin-bottom:32px;padding-bottom:28px;border-bottom:1px solid var(--border)">
+            <button class="btn btn-primary btn-sm" onclick="saveSettings()">Save Settings</button>
+            <button class="btn btn-outline btn-sm" onclick="resetSettingsForm()">Reset</button>
+          </div>
+
+          <!-- Danger Zone -->
+          <div>
+            <div style="font-family:var(--font-mono);font-size:0.65rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-secondary);margin-bottom:16px">Danger Zone</div>
+            <button class="btn btn-outline btn-sm" onclick="confirmLogout()" style="margin-bottom:8px">Sign Out of All Sessions</button>
+            <button class="btn btn-danger btn-sm" onclick="confirmDeleteAccount()">Delete Account</button>
+          </div>
+        </div>
+      `;
+    }
+  }
+
+  function saveSettings() {
+    const currentUser = getCurrentUser();
+    const email = document.getElementById('settings-email').value.trim();
+    const isPrivate = document.getElementById('settings-private').checked;
+    const theme = document.getElementById('settings-theme').value;
+
+    DB.setUserEmail(currentUser.id, email);
+    DB.setUserPrivacy(currentUser.id, isPrivate);
+    DB.setUserTheme(currentUser.id, theme);
+    applyTheme(theme);
+    
+    showToast('Settings saved.', 'success');
+    switchTab('settings');
+  }
+
+  function resetSettingsForm() {
+    switchTab('settings');
+  }
+
+  function savePasswordChange() {
+    const currentUser = getCurrentUser();
+    const oldPassword = document.getElementById('settings-old-password').value;
+    const newPassword = document.getElementById('settings-new-password').value;
+    const confirmPassword = document.getElementById('settings-confirm-password').value;
+
+    if (!oldPassword || !newPassword || !confirmPassword) {
+      showToast('All password fields are required.', 'error');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      showToast('New passwords do not match.', 'error');
+      return;
+    }
+    if (newPassword.length < 6) {
+      showToast('Password must be at least 6 characters.', 'error');
+      return;
+    }
+    if (newPassword.length > 128) {
+      showToast('Password too long (max 128 chars).', 'error');
+      return;
+    }
+    // Security: Prevent new password from being too similar to old
+    if (newPassword === oldPassword) {
+      showToast('New password must be different from old password.', 'error');
+      return;
+    }
+
+    if (!DB.changePassword(currentUser.id, oldPassword, newPassword)) {
+      showToast('Current password is incorrect.', 'error');
+      return;
+    }
+
+    showToast('Password changed successfully.', 'success');
+    document.getElementById('settings-old-password').value = '';
+    document.getElementById('settings-new-password').value = '';
+    document.getElementById('settings-confirm-password').value = '';
+  }
+
+  function unblockUserAction(userId) {
+    const currentUser = getCurrentUser();
+    DB.unblockUser(currentUser.id, userId);
+    showToast('User unblocked.', 'success');
+    switchTab('settings');
+  }
+
+  function confirmDeleteAccount() {
+    const currentUser = getCurrentUser();
+    const username = prompt(`Type your username "@${currentUser.username}" to confirm account deletion. This cannot be undone.`);
+    
+    if (!username || username !== `@${currentUser.username}`) {
+      if (username !== null) showToast('Confirmation did not match.', 'error');
+      return;
+    }
+    
+    // Security: Require password for account deletion
+    const password = prompt('Enter your password to confirm account deletion:');
+    if (!password) return;
+    
+    // Call backend API to verify password and delete account
+    AuthService.deleteAccount(password)
+      .then(() => {
+        showToast('Account deleted. Redirecting...', 'success');
+        setTimeout(() => location.href = 'index.html', 1500);
+      })
+      .catch(error => {
+        showToast(error.message || 'Error deleting account.', 'error');
+      });
+  }
+
+  function toggleEdit() {
+    const form = document.getElementById('edit-form');
+    const btn  = document.getElementById('edit-btn');
+    if (!form || !btn) return;
+    editMode = !editMode;
+    form.classList.toggle('hidden', !editMode);
+    btn.textContent = editMode ? 'Cancel Edit' : 'Edit Profile';
+  }
+
+  function saveProfile(userId) {
+    const displayName = document.getElementById('edit-displayname').value.trim();
+    const bio         = document.getElementById('edit-bio').value.trim();
+    if (!displayName) { showToast('Display name is required.', 'error'); return; }
+
+    DB.updateUser(userId, { displayName, bio });
+    showToast('Profile updated.', 'success');
+
+    // Update UI
+    document.getElementById('profile-name-display').textContent = displayName;
+    document.getElementById('profile-bio-display').textContent  = bio || '';
+    toggleEdit();
+
+    // If current user, update sidebar
+    document.getElementById('sidebar-mount').innerHTML = renderSidebar();
+  }
+
+  function confirmLogout() {
+    if (confirm('Sign out of all sessions?')) logout();
+  }
+
+  function triggerImageUpload() {
+    document.getElementById('profile-image-input').click();
+  }
+
+  function handleImageUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Security: Validate MIME type
+    if (!SecurityUtil.isValidImageMime(file.type)) {
+      showToast('Only JPEG, PNG, WebP, and GIF images allowed.', 'error');
+      return;
+    }
+
+    // Security: Validate file size (max 2MB for backend)
+    if (file.size > 2 * 1024 * 1024) {
+      showToast('Image too large. Max 2MB.', 'error');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const imageData = e.target.result;
+      const user = window._profileUser;
+      const isOwn = window._profileIsOwn;
+
+      if (!isOwn) return;
+
+      try {
+        // Upload to backend via API if authenticated
+        if (AuthService.isAuthenticated()) {
+          const result = await AuthService.uploadAvatar(imageData);
+          // Update current user in memory
+          const currentUser = getCurrentUser();
+          if (currentUser) {
+            currentUser.avatar = result.user.avatar;
+            localStorage.setItem('current_user', JSON.stringify(currentUser));
+          }
+        } else {
+          // Fallback: Save to localStorage only
+          if (!DB.setUserProfilePicture(user.id, imageData, file.type)) {
+            showToast('Failed to upload image.', 'error');
+            return;
+          }
+        }
+
+        // Update display
+        const img = document.getElementById('profile-avatar-image');
+        const avatar = document.getElementById('profile-avatar-display');
+        if (img && avatar) {
+          img.src = imageData;
+          img.style.display = 'block';
+          avatar.style.display = 'none';
+        }
+
+        showToast('Profile picture updated!', 'success');
+        event.target.value = ''; // Reset input
+      } catch (error) {
+        showToast(error.message || 'Failed to upload image.', 'error');
+        event.target.value = '';
+      }
+    };
+    reader.readAsDataURL(file);
+  }
+</script>
+</body>
+</html>

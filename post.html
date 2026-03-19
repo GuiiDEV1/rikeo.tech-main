@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Thread — RIKEO Forum</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div id="header-mount"></div>
+
+<div class="container" style="padding:0">
+  <div class="layout">
+    <main class="main-col" id="main-content">
+      <div class="empty-state"><div class="empty-icon" style="animation:pulse 1s infinite">◈</div><div class="empty-title">Loading…</div></div>
+    </main>
+    <div id="sidebar-mount"></div>
+  </div>
+</div>
+
+<div id="footer-mount"></div>
+<div id="toast-container"></div>
+
+<script src="js/authService.js"></script>
+<script src="js/emailVerification.js"></script>
+<script src="js/data.js"></script>
+<script src="js/app.js"></script>
+<script>
+  const postId = new URLSearchParams(location.search).get('id');
+
+  document.addEventListener('DOMContentLoaded', () => {
+    applyTheme();
+    document.getElementById('header-mount').innerHTML = renderHeader('home');
+    document.getElementById('sidebar-mount').innerHTML = renderSidebar();
+    document.getElementById('footer-mount').innerHTML = renderFooter();
+
+    if (!postId) { renderNotFound(); return; }
+    const post = DB.getPost(postId);
+    if (!post) { renderNotFound(); return; }
+
+    DB.incrementViews(postId);
+    renderThread(post);
+  });
+
+  function renderNotFound() {
+    document.getElementById('main-content').innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">◈</div>
+        <div class="empty-title">Thread not found</div>
+        <div class="empty-text">This thread may have been removed.</div>
+        <a href="index.html" class="btn btn-outline">Back to Forum</a>
+      </div>`;
+  }
+
+  function renderAvatarHtml(avatar) {
+    // Check if avatar is a base64 image
+    if (avatar && avatar.startsWith('data:image/')) {
+      return `<img src="${avatar}" alt="Avatar" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;">`;
+    }
+    // Otherwise render as initials text
+    return escapeHtml(avatar || '?');
+  }
+
+  function renderThread(post) {
+    const cat    = DB.getCategory(post.categoryId);
+    const author = DB.getUser(post.authorId);
+    const user   = getCurrentUser();
+    document.title = `${post.title} — RIKEO Forum`;
+
+    // Video embed
+    let videoHtml = '';
+    if (post.videoUrl) {
+      const ytId = extractYouTubeId(post.videoUrl);
+      if (ytId) {
+        videoHtml = `<div class="video-embed"><iframe src="https://www.youtube.com/embed/${ytId}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen title="Embedded video"></iframe></div>`;
+      }
+    }
+
+    // Image gallery
+    let imagesHtml = '';
+    if (post.images && post.images.length > 0) {
+      imagesHtml = `<div class="post-images" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;margin:16px 0;">
+        ${post.images.map(img => `<img src="${img}" alt="Post image" style="width:100%;max-height:500px;object-fit:cover;border-radius:6px;cursor:pointer;" onclick="window.open('${img.replace(/'/g, '\\\'')}')">`).join('')}
+      </div>`;
+    }
+
+    const comments = DB.getComments(postId);
+    const topLevel = comments.filter(c => !c.parentId);
+
+    document.getElementById('main-content').innerHTML = `
+      <!-- Thread header -->
+      <div class="thread-header">
+        <div class="breadcrumb">
+          <a href="index.html">Forum</a>
+          <span class="breadcrumb-sep">/</span>
+          ${cat ? `<a href="forum.html?cat=${cat.id}">${escapeHtml(cat.name)}</a>` : ''}
+          <span class="breadcrumb-sep">/</span>
+          <span style="color:var(--text-secondary);font-size:0.75rem">${escapeHtml(post.title.slice(0,40))}${post.title.length>40?'…':''}</span>
+        </div>
+        <h1 class="thread-title">${escapeHtml(post.title)}</h1>
+        <div class="thread-info">
+          ${cat ? `<span class="post-category-tag" style="color:${cat.color};border-color:${cat.color}">${escapeHtml(cat.name)}</span>` : ''}
+          ${post.pinned ? `<span class="badge badge-accent">Pinned</span>` : ''}
+          <span class="thread-stat">${formatDate(post.createdAt)}</span>
+          <span class="thread-stat">${formatNumber(post.views)} views</span>
+          <span class="thread-stat">${comments.length} replies</span>
+          ${(post.tags||[]).map(t=>`<span class="badge">${escapeHtml(t)}</span>`).join('')}
+        </div>
+      </div>
+
+      <!-- Post body -->
+      <article class="post-body">
+        <div class="post-body-inner">
+          <div class="post-author-block">
+            <div class="author-avatar">${renderAvatarHtml(author ? author.avatar : '?')}</div>
+            <div>
+              <div class="author-name">${author ? escapeHtml(author.displayName) : 'Unknown'}</div>
+              <div class="author-role">${author ? (author.role === 'admin' ? 'Admin' : 'Member') : ''}</div>
+            </div>
+            <span style="margin-left:auto;font-family:var(--font-mono);font-size:0.68rem;color:var(--text-muted)">${timeAgo(post.createdAt)}</span>
+          </div>
+          ${videoHtml}
+          ${imagesHtml}
+          <div class="post-content" id="post-content-body">${sanitizeHTML(post.content)}</div>
+        </div>
+        <div class="post-actions">
+          <button class="vote-btn" id="upvote-btn" onclick="votePost('up')" aria-label="Upvote">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 3l5 6H3z"/></svg>
+            <span id="upvote-count">0</span>
+          </button>
+          <button class="vote-btn" id="downvote-btn" onclick="votePost('down')" aria-label="Downvote">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 13L3 7h10z"/></svg>
+          </button>
+          <button class="btn btn-ghost btn-sm" onclick="scrollToReply()">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" width="13" height="13"><path d="M2 4h12v8H6l-4 3V4z"/></svg>
+            Reply
+          </button>
+          <button class="btn btn-ghost btn-sm" onclick="sharePost()">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" width="13" height="13"><circle cx="12" cy="4" r="1.5"/><circle cx="4" cy="8" r="1.5"/><circle cx="12" cy="12" r="1.5"/><path d="M5.5 7l5-2m-5 4l5 2"/></svg>
+            Share
+          </button>
+        </div>
+      </article>
+
+      <!-- Comments -->
+      <div class="comments-header">
+        <span class="comments-title">${comments.length} ${comments.length === 1 ? 'Reply' : 'Replies'}</span>
+        <div class="flex gap-8">
+          <button class="filter-btn active" onclick="sortComments(this,'oldest')">Oldest</button>
+          <button class="filter-btn" onclick="sortComments(this,'newest')">Newest</button>
+          <button class="filter-btn" onclick="sortComments(this,'top')">Top</button>
+        </div>
+      </div>
+      <div id="comments-list">
+        ${renderComments(topLevel, comments, null)}
+      </div>
+
+      <!-- Reply form -->
+      <div class="reply-form" id="reply-section">
+        <div class="reply-form-title">Leave a Reply</div>
+        <div id="reply-auth-prompt" class="${getCurrentUser() ? 'hidden' : ''}">
+          <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:16px">Sign in to join the conversation.</p>
+          <button class="btn btn-primary" onclick="showAuthModal('login',()=>rerenderReplyForm())">Sign In</button>
+          <button class="btn btn-outline" onclick="showAuthModal('register',()=>rerenderReplyForm())" style="margin-left:8px">Create Account</button>
+        </div>
+        <div id="reply-form-inner" class="${!getCurrentUser() ? 'hidden' : ''}">
+          ${renderReplyForm(null)}
+        </div>
+      </div>
+    `;
+
+    initVotes();
+  }
+
+  function renderComments(comments, allComments, parentId) {
+    if (!comments.length && parentId === null) return '<div style="padding:40px 28px;color:var(--text-secondary);font-size:0.85rem">No replies yet. Be the first.</div>';
+    return comments.map(c => {
+      const replies = allComments.filter(r => r.parentId === c.id);
+      const author  = DB.getUser(c.authorId);
+      return `
+        <div class="comment-item" id="comment-${c.id}">
+          <div class="comment-header">
+            <div class="author-avatar author-avatar-sm">${renderAvatarHtml(author ? author.avatar : '?')}</div>
+            <div>
+              <div class="author-name" style="font-size:0.82rem">${author ? escapeHtml(author.displayName) : 'Unknown'}</div>
+            </div>
+            <span style="margin-left:auto;font-family:var(--font-mono);font-size:0.65rem;color:var(--text-muted)">${timeAgo(c.createdAt)}</span>
+          </div>
+          <div class="comment-body">${sanitizeHTML(textToHtml(c.content))}</div>
+          <div class="comment-actions">
+            <button class="comment-action-btn vote-comment-btn" data-id="${c.id}" data-votes="${c.votes||0}" onclick="voteComment('${c.id}', this)">
+              ↑ <span class="comment-vote-count">${c.votes||0}</span>
+            </button>
+            <button class="comment-action-btn" onclick="showReplyForm('${c.id}')">Reply</button>
+            <a href="#comment-${c.id}" class="comment-action-btn" style="text-decoration:none">#${c.id.slice(-4)}</a>
+          </div>
+          <div class="inline-reply-form hidden" id="reply-form-${c.id}"></div>
+          ${replies.length ? `<div class="comment-replies">${renderComments(replies, allComments, c.id)}</div>` : ''}
+        </div>
+      `;
+    }).join('');
+  }
+
+  function renderReplyForm(parentId) {
+    const user = getCurrentUser();
+    if (!user) return '';
+    return `
+      <div style="display:flex;align-items:flex-start;gap:12px">
+        <div class="author-avatar author-avatar-sm" style="flex-shrink:0;margin-top:4px">${renderAvatarHtml(user.avatar)}</div>
+        <div style="flex:1">
+          <textarea class="form-textarea" id="reply-text-${parentId||'main'}" placeholder="Write your reply…" rows="4" maxlength="5000" style="min-height:100px"></textarea>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+            <span class="char-count" id="reply-chars-${parentId||'main'}">0 / 5000</span>
+            <div class="flex gap-8">
+              ${parentId ? `<button class="btn btn-ghost btn-sm" onclick="cancelReply('${parentId}')">Cancel</button>` : ''}
+              <button class="btn btn-primary btn-sm" onclick="submitReply('${parentId||''}')">Post Reply</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  // Track textarea char count
+  document.addEventListener('input', e => {
+    if (e.target.tagName === 'TEXTAREA' && e.target.id.startsWith('reply-text-')) {
+      const id  = e.target.id.replace('reply-text-','');
+      const cnt = document.getElementById('reply-chars-'+id);
+      if (cnt) cnt.textContent = `${e.target.value.length} / 5000`;
+    }
+  });
+
+  function showReplyForm(commentId) {
+    const container = document.getElementById(`reply-form-${commentId}`);
+    if (!container) return;
+    requireAuth(user => {
+      container.classList.remove('hidden');
+      container.innerHTML = renderReplyForm(commentId);
+    });
+  }
+
+  function cancelReply(commentId) {
+    const container = document.getElementById(`reply-form-${commentId}`);
+    if (container) { container.classList.add('hidden'); container.innerHTML = ''; }
+  }
+
+  function submitReply(parentId) {
+    requireAuth(user => {
+      const inputId = parentId ? `reply-text-${parentId}` : 'reply-text-main';
+      const textarea = document.getElementById(inputId);
+      if (!textarea) return;
+      const content = textarea.value.trim();
+      if (!content) { showToast('Reply cannot be empty.', 'error'); return; }
+      if (content.length > 5000) { showToast('Reply too long.', 'error'); return; }
+
+      DB.createComment({ postId, parentId: parentId || null, authorId: user.id, content });
+
+      if (parentId) cancelReply(parentId);
+      textarea.value = '';
+
+      // Re-render comments
+      const allComments = DB.getComments(postId);
+      const topLevel    = allComments.filter(c => !c.parentId);
+      document.getElementById('comments-list').innerHTML = renderComments(topLevel, allComments, null);
+
+      // Update reply count in header
+      const countEl = document.querySelector('.comments-title');
+      if (countEl) countEl.textContent = `${allComments.length} ${allComments.length===1?'Reply':'Replies'}`;
+
+      showToast('Reply posted.', 'success');
+    });
+  }
+
+  function rerenderReplyForm() {
+    const user = getCurrentUser();
+    if (!user) return;
+    document.getElementById('reply-auth-prompt').classList.add('hidden');
+    const inner = document.getElementById('reply-form-inner');
+    inner.classList.remove('hidden');
+    inner.innerHTML = renderReplyForm(null);
+  }
+
+  function sortComments(btn, order) {
+    document.querySelectorAll('.comments-header .filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    let comments = DB.getComments(postId);
+    if (order === 'newest') comments = [...comments].sort((a,b) => b.createdAt - a.createdAt);
+    else if (order === 'top') comments = [...comments].sort((a,b) => (b.votes||0) - (a.votes||0));
+    const topLevel = comments.filter(c => !c.parentId);
+    document.getElementById('comments-list').innerHTML = renderComments(topLevel, comments, null);
+  }
+
+  function scrollToReply() {
+    requireAuth(() => {
+      document.getElementById('reply-section').scrollIntoView({ behavior: 'smooth' });
+    });
+  }
+
+  function votePost(type) {
+    requireAuth(user => {
+      const result = DB.toggleVote(user.id, 'post_'+postId, type);
+      const upBtn  = document.getElementById('upvote-btn');
+      const dnBtn  = document.getElementById('downvote-btn');
+      upBtn.classList.toggle('active', result === 'up');
+      dnBtn.classList.toggle('active', result === 'down');
+    });
+  }
+
+  function voteComment(commentId, btn) {
+    requireAuth(user => {
+      const result = DB.getCommentVotes(commentId, user.id);
+      if (result === null) return;
+      const countEl = btn.querySelector('.comment-vote-count');
+      if (countEl) countEl.textContent = result.votes;
+      btn.classList.toggle('active', result.userVote === 'up');
+    });
+  }
+
+  function initVotes() {
+    const user = getCurrentUser();
+    if (!user) return;
+    const vote = DB.getVote(user.id, 'post_'+postId);
+    if (vote === 'up') document.getElementById('upvote-btn')?.classList.add('active');
+    if (vote === 'down') document.getElementById('downvote-btn')?.classList.add('active');
+  }
+
+  function sharePost() {
+    const url = window.location.href;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(url).then(() => showToast('Link copied.', 'success'));
+    } else {
+      showToast('Copy this URL: ' + url);
+    }
+  }
+</script>
+</body>
+</html>
