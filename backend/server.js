@@ -7,7 +7,6 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
-const path = require('path');
 const authRoutes = require('./routes/auth');
 const notificationsRoutes = require('./routes/notifications');
 const moderationRoutes = require('./routes/moderation');
@@ -44,9 +43,6 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// ── Serve Frontend (Static Files) ──────────────────────────
-app.use(express.static(path.join(__dirname, '../')));
-
 // ── Database Connection ───────────────────────────────────
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/rikeo-tech')
   .then(() => console.log('✓ MongoDB connected'))
@@ -71,11 +67,6 @@ app.get('/api/health', (req, res) => {
 // ── API 404 Handler ──────────────────────────────────────
 app.use('/api/*', (req, res) => {
   res.status(404).json({ error: 'API endpoint not found' });
-});
-
-// ── Fallback to Frontend (SPA Routing) ─────────────────────
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../index.html'));
 });
 
 // ── Error Handling ────────────────────────────────────────
