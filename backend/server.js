@@ -18,12 +18,9 @@ const app = express();
 
 // ── Middleware ────────────────────────────────────────────
 app.use(cors({
-  origin: [
-    'http://localhost:8000',
-    'http://127.0.0.1:8000',
-    'http://localhost:8080',
-    'http://127.0.0.1:8080'
-  ],
+  origin: process.env.NODE_ENV === 'production' 
+    ? ['https://rikeo.tech', 'https://www.rikeo.tech']
+    : ['http://localhost:8000', 'http://127.0.0.1:8000', 'http://localhost:8080', 'http://127.0.0.1:8080'],
   credentials: true
 }));
 
@@ -46,6 +43,10 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// ── Serve Frontend (Static Files) ──────────────────────────
+const path = require('path');
+app.use(express.static(path.join(__dirname, '../')));
+
 // ── Database Connection ───────────────────────────────────
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/rikeo-tech')
   .then(() => console.log('✓ MongoDB connected'))
@@ -65,6 +66,13 @@ app.use('/api/bookmarks', bookmarksRoutes);
 // ── Health Check ──────────────────────────────────────────
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'RIKEO.TECH backend is running' });
+});
+
+// ── Fallback to Frontend (SPA Routing) ─────────────────────
+app.get('*', (req, res) => {
+  if (!req.url.startsWith('/api')) {
+    res.sendFile(path.join(__dirname, '../index.html'));
+  }
 });
 
 // ── Error Handling ────────────────────────────────────────
