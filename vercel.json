@@ -1,4 +1,1 @@
-{
-  "buildCommand": "cd backend && npm install",
-  "installCommand": "npm install && cd backend && npm install"
-}
+{}
